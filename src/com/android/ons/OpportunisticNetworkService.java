@@ -507,9 +507,11 @@ public class OpportunisticNetworkService extends Service {
         enableOpportunisticNetwork(getPersistentEnableState());
         mONSProfileActivator = new ONSProfileActivator(mContext, mONSStats);
         mCarrierConfigManager = mContext.getSystemService(CarrierConfigManager.class);
-        // Registers for carrier config changes and runs on handler thread
-        mCarrierConfigManager.registerCarrierConfigChangeListener(mHandler::post,
-                mCarrierConfigChangeListener);
+        if (mCarrierConfigManager != null) {
+            // Registers for carrier config changes and runs on handler thread
+            mCarrierConfigManager.registerCarrierConfigChangeListener(mHandler::post,
+                    mCarrierConfigChangeListener);
+        }
         mUserManager = mContext.getSystemService(UserManager.class);
         mPackageManager = mContext.getPackageManager();
     }
