@@ -38,6 +38,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteException;
+import android.os.SystemProperties;
 import android.os.TelephonyServiceManager.ServiceRegisterer;
 import android.os.UserManager;
 import android.telephony.AvailableNetworkInfo;
@@ -79,6 +80,7 @@ public class OpportunisticNetworkService extends Service {
     @VisibleForTesting protected ONSProfileSelector mProfileSelector;
     private SharedPreferences mSharedPref;
     @VisibleForTesting protected HashMap<String, ONSConfigInput> mONSConfigInputHashMap;
+    private int mVendorApiLevel;
 
     private static final String TAG = "ONS";
     private static final String PREF_NAME = TAG;
@@ -514,6 +516,8 @@ public class OpportunisticNetworkService extends Service {
         }
         mUserManager = mContext.getSystemService(UserManager.class);
         mPackageManager = mContext.getPackageManager();
+        mVendorApiLevel = SystemProperties.getInt(
+                "ro.vendor.api_level", Build.VERSION.DEVICE_INITIAL_SDK_INT);
     }
 
     /**
@@ -813,7 +817,11 @@ public class OpportunisticNetworkService extends Service {
 
         if (!Flags.enforceTelephonyFeatureMappingForPublicApis()
                 || !CompatChanges.isChangeEnabled(ENABLE_FEATURE_MAPPING, callingPackage,
-                Binder.getCallingUserHandle())) {
+                Binder.getCallingUserHandle())
+                || mVendorApiLevel < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            // Skip to check associated telephony feature,
+            // if compatibility change is not enabled for the current process or
+            // the SDK version of vendor partition is less than Android V.
             return;
         }
 
