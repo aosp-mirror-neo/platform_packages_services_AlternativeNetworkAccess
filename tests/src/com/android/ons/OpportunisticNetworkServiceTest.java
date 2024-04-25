@@ -131,9 +131,6 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         }).start();
         waitUntilReady(300);
 
-        // This is used for com.android.internal.telephony.flags.Flags
-        mSetFlagsRule.initAllFlagsToReleaseConfigDefault();
-
         // In order not to affect the existing implementation, define a telephony feature
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_DATA))
                 .thenReturn(true);
