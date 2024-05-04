@@ -31,6 +31,7 @@ import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.telephony.UiccCardInfo;
 import android.telephony.euicc.EuiccManager;
 import android.util.Log;
 
@@ -79,7 +80,7 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
         mONSProfileConfig = new ONSProfileConfigurator(mContext, mSubManager,
                 mCarrierConfigMgr, mEuiccManager, this);
         mONSProfileDownloader = new ONSProfileDownloader(mContext, mCarrierConfigMgr,
-                mEuiccManager, mONSProfileConfig, this);
+                mEuiccManager, mSubManager, mONSProfileConfig, this);
 
         //Monitor internet connection.
         mConnectivityManager = context.getSystemService(ConnectivityManager.class);
@@ -480,7 +481,19 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
      * Checks if device supports eSIM.
      */
     private boolean isESIMSupported() {
-        return (mEuiccManager != null && mEuiccManager.isEnabled());
+        for (UiccCardInfo uiccCardInfo : mTelephonyManager.getUiccCardsInfo()) {
+            if (uiccCardInfo != null && !uiccCardInfo.isEuicc()) {
+                // Skip this card.
+                continue;
+            }
+
+            EuiccManager euiccManager = mEuiccManager.createForCardId(uiccCardInfo.getCardId());
+            if (euiccManager.isEnabled()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

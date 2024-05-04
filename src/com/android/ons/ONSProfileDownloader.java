@@ -24,6 +24,8 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.PersistableBundle;
 import android.telephony.CarrierConfigManager;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.euicc.DownloadableSubscription;
 import android.telephony.euicc.EuiccManager;
 import android.util.Log;
@@ -51,6 +53,7 @@ public class ONSProfileDownloader {
     private final Context mContext;
     private final CarrierConfigManager mCarrierConfigManager;
     private final EuiccManager mEuiccManager;
+    private final SubscriptionManager mSubManager;
     private final ONSProfileConfigurator mONSProfileConfig;
     private IONSProfileDownloaderListener mListener;
 
@@ -67,12 +70,13 @@ public class ONSProfileDownloader {
     };
 
     public ONSProfileDownloader(Context context, CarrierConfigManager carrierConfigManager,
-                                EuiccManager euiccManager,
+                                EuiccManager euiccManager, SubscriptionManager subManager,
                                 ONSProfileConfigurator onsProfileConfigurator,
                                 IONSProfileDownloaderListener listener) {
         mContext = context;
         mListener = listener;
         mEuiccManager = euiccManager;
+        mSubManager = subManager;
         mONSProfileConfig = onsProfileConfigurator;
         mCarrierConfigManager = carrierConfigManager;
 
@@ -258,8 +262,22 @@ public class ONSProfileDownloader {
                 REQUEST_CODE_DOWNLOAD_SUB, intent, PendingIntent.FLAG_MUTABLE);
 
         Log.d(TAG, "Download Request sent to EUICC Manager");
-        mEuiccManager.downloadSubscription(DownloadableSubscription.forActivationCode(
-                activationCode), true, callbackIntent);
+        // TODO: Check with euicc team if card specific EUICC Manager should be used to download.
+        // Once the eSIM profile is downloaded, port is auto decided by eUICC to activate the
+        // subscription. If there is no available port, an
+        // {@link #EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR} will be returned in the callback
+        // intent to prompt the user to disable an already-active subscription. However, ONS will
+        // not show any prompt to the user and silently fails to activate the subscription.
+        // ONS will try to provision again when carrier configuration change event is received.
+        SubscriptionInfo primarySubInfo = mSubManager.getActiveSubscriptionInfo(primarySubId);
+        if (primarySubInfo != null && primarySubInfo.isEmbedded()) {
+            EuiccManager euiccManager = mEuiccManager.createForCardId(primarySubInfo.getCardId());
+            euiccManager.downloadSubscription(DownloadableSubscription.forActivationCode(
+                    activationCode), true, callbackIntent);
+        } else {
+            mEuiccManager.downloadSubscription(DownloadableSubscription.forActivationCode(
+                    activationCode), true, callbackIntent);
+        }
 
         return DownloadProfileResult.SUCCESS;
     }
@@ -272,7 +290,11 @@ public class ONSProfileDownloader {
      */
     private String getSMDPServerAddress(int subscriptionId) {
         PersistableBundle config = mCarrierConfigManager.getConfigForSubId(subscriptionId);
-        return config.getString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING);
+        if (config != null) {
+            return config.getString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING);
+        } else {
+            return null;
+        }
     }
 
     /**

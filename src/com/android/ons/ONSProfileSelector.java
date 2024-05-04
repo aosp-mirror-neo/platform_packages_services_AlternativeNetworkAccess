@@ -371,7 +371,16 @@ public class ONSProfileSelector {
                     TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SIM_PORT_NOT_AVAILABLE);
             return;
         }
-        mEuiccManager.switchToSubscription(subId, availableSIMPortIndex, replyIntent);
+
+        List<SubscriptionInfo> subInfoList = mSubscriptionManager
+                .getAvailableSubscriptionInfoList();
+        for (SubscriptionInfo subInfo : subInfoList) {
+            if (subId == subInfo.getSubscriptionId()) {
+                EuiccManager euiccManager = mEuiccManager.createForCardId(subInfo.getCardId());
+                euiccManager.switchToSubscription(subId, availableSIMPortIndex, replyIntent);
+                break;
+            }
+        }
     }
 
     @VisibleForTesting

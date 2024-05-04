@@ -161,7 +161,22 @@ public class ONSProfileConfigurator {
         PendingIntent callbackIntent = PendingIntent.getBroadcast(mContext,
                 REQUEST_CODE_ACTIVATE_SUB, intent, PendingIntent.FLAG_IMMUTABLE);
         Log.d(TAG, "Activate oppSub request sent to SubManager");
-        mEuiccManager.switchToSubscription(subId, callbackIntent);
+
+        List<SubscriptionInfo> subInfoList = mSubscriptionManager
+                .getAvailableSubscriptionInfoList();
+        for (SubscriptionInfo subInfo : subInfoList) {
+            if (subId == subInfo.getSubscriptionId()) {
+                EuiccManager euiccManager = mEuiccManager.createForCardId(subInfo.getCardId());
+                // eUICC and the platform will internally resolve a port. If there is no available
+                // port, an {@link #EMBEDDED_SUBSCRIPTION_RESULT_RESOLVABLE_ERROR} will be returned
+                // in the callback intent to prompt the user to disable an already-active
+                // subscription. However, ONS will not show any prompt to the user and silently
+                // fails to activate the subscription. ONS will try to provision again when
+                // carrier configuration change event is received.
+                euiccManager.switchToSubscription(subId, callbackIntent);
+                break;
+            }
+        }
     }
 
     /**
@@ -235,7 +250,16 @@ public class ONSProfileConfigurator {
         intent.putExtra(PARAM_SUB_ID, subId);
         PendingIntent callbackIntent = PendingIntent.getBroadcast(mContext,
                 REQUEST_CODE_DELETE_SUB, intent, PendingIntent.FLAG_MUTABLE);
-        mEuiccManager.deleteSubscription(subId, callbackIntent);
+
+        List<SubscriptionInfo> subInfoList = mSubscriptionManager
+                .getAvailableSubscriptionInfoList();
+        for (SubscriptionInfo subInfo : subInfoList) {
+            if (subId == subInfo.getSubscriptionId()) {
+                EuiccManager euiccManager = mEuiccManager.createForCardId(subInfo.getCardId());
+                euiccManager.deleteSubscription(subId, callbackIntent);
+                break;
+            }
+        }
     }
 
     /**

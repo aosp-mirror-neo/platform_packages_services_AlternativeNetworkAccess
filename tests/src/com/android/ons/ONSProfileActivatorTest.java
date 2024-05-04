@@ -33,6 +33,8 @@ import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.telephony.UiccCardInfo;
+import android.telephony.UiccPortInfo;
 import android.telephony.euicc.EuiccManager;
 import android.util.Log;
 
@@ -79,6 +81,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
     Resources mMockResources;
     @Mock
     ONSStats mMockONSStats;
+    @Mock
+    EuiccManager mMockEuiccManagerCard1;
 
     @Before
     public void setUp() throws Exception {
@@ -99,6 +103,25 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         persistableBundle.putBoolean(CarrierConfigManager
                 .KEY_CARRIER_SUPPORTS_OPP_DATA_AUTO_PROVISIONING_BOOL, true);
         doReturn(persistableBundle).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUBID_1);
+
+        ArrayList<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
+        ArrayList<UiccPortInfo> uiccPortInfoList =  new ArrayList<>();
+        uiccPortInfoList.add(
+                new UiccPortInfo("123451234567890" /* iccId */,
+                0 /* portIdx */,
+                0 /* logicalSlotIdx */,
+                true /* isActive */));
+        UiccCardInfo uiccCardInfo = new UiccCardInfo(true, /* isEuicc */
+                1 /* cardId */,
+                "123451234567890" /* eid */,
+                0 /* physicalSlotIndex */,
+                true /* isRemovable */,
+                true /* isMultipleEnabledProfilesSupported */,
+                uiccPortInfoList /* portList */);
+        uiccCardInfoList.add(uiccCardInfo);
+        doReturn(mMockEuiccManagerCard1).when(mMockEuiccManager).createForCardId(1);
+        doReturn(true).when(mMockEuiccManagerCard1).isEnabled();
+        doReturn(uiccCardInfoList).when(mMockTeleManager).getUiccCardsInfo();
     }
 
     // Worker thread is used for testing asynchronous APIs and Message Handlers.
@@ -157,6 +180,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
         doReturn(false).when(mMockEuiccManager).isEnabled();
+        doReturn(false).when(mMockEuiccManagerCard1).isEnabled();
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
@@ -637,7 +661,9 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(null).when(mMockSubInfo).getGroupUuid();
 
         final int maxRetryCount = 5;
-        final int retryBackoffTime = 1; //1 second
+
+        // Retry immediately without wait. To reduce UT execution time.
+        final int retryBackoffTime = 0;
 
         PersistableBundle persistableBundle = new PersistableBundle();
         persistableBundle.putBoolean(CarrierConfigManager

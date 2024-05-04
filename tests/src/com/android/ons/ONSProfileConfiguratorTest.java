@@ -21,7 +21,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.app.PendingIntent;
-import android.content.Context;
 import android.content.Intent;
 import android.os.Looper;
 import android.os.Message;
@@ -30,7 +29,6 @@ import android.os.PersistableBundle;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
-import android.telephony.TelephonyManager;
 import android.telephony.euicc.EuiccManager;
 
 import org.junit.After;
@@ -45,20 +43,29 @@ import java.util.UUID;
 public class ONSProfileConfiguratorTest extends ONSBaseTest {
     private static final String TAG = ONSProfileConfiguratorTest.class.getName();
     private static final int TEST_SUB_ID = 1;
-    @Mock SubscriptionManager mMockSubManager;
-    @Mock SubscriptionInfo mMockSubscriptionInfo1;
-    @Mock SubscriptionInfo mMockSubscriptionInfo2;
-    @Mock EuiccManager mMockEuiccMngr;
-    @Mock TelephonyManager mMockTelephonyManager;
-    @Mock CarrierConfigManager mMockCarrierConfigManager;
-    @Mock private Context mMockContext;
-    @Mock private ONSProfileActivator mMockONSProfileActivator;
-    @Mock private ONSProfileConfigurator.ONSProfConfigListener mMockConfigListener;
+    @Mock
+    SubscriptionManager mMockSubManager;
+    @Mock
+    SubscriptionInfo mMockSubscriptionInfo1;
+    @Mock
+    SubscriptionInfo mMockSubscriptionInfo2;
+    @Mock
+    EuiccManager mMockEuiccMngr;
+    @Mock
+    EuiccManager mMockEuiccMngrCard1;
+    @Mock
+    EuiccManager mMockEuiccMngrCard2;
+    @Mock
+    CarrierConfigManager mMockCarrierConfigManager;
+    @Mock
+    private ONSProfileConfigurator.ONSProfConfigListener mMockConfigListener;
 
     @Before
     public void setUp() throws Exception {
         super.setUp("ONSTest");
         MockitoAnnotations.initMocks(this);
+        doReturn(mMockEuiccMngrCard1).when(mMockEuiccMngr).createForCardId(1);
+        doReturn(mMockEuiccMngrCard2).when(mMockEuiccMngr).createForCardId(2);
         Looper.prepare();
     }
 
@@ -130,8 +137,19 @@ public class ONSProfileConfiguratorTest extends ONSBaseTest {
                         intent,
                         PendingIntent.FLAG_IMMUTABLE);
 
+        ArrayList<SubscriptionInfo> activeSubInfos = new ArrayList<>();
+
+        doReturn(1).when(mMockSubscriptionInfo1).getSubscriptionId();
+        doReturn(1).when(mMockSubscriptionInfo1).getCardId();
+        activeSubInfos.add(mMockSubscriptionInfo1);
+
+        doReturn(2).when(mMockSubscriptionInfo2).getSubscriptionId();
+        doReturn(2).when(mMockSubscriptionInfo2).getCardId();
+        activeSubInfos.add(mMockSubscriptionInfo2);
+        doReturn(activeSubInfos).when(mMockSubManager).getAvailableSubscriptionInfoList();
+
         mOnsProfileConfigurator.activateSubscription(TEST_SUB_ID);
-        verify(mMockEuiccMngr).switchToSubscription(TEST_SUB_ID, callbackIntent);
+        verify(mMockEuiccMngrCard1).switchToSubscription(TEST_SUB_ID, callbackIntent);
     }
 
     @Test
@@ -155,15 +173,18 @@ public class ONSProfileConfiguratorTest extends ONSBaseTest {
                 mMockSubManager, mMockCarrierConfigManager, mMockEuiccMngr, mMockConfigListener);
 
         doReturn(1).when(mMockSubscriptionInfo1).getSubscriptionId();
+        doReturn(1).when(mMockSubscriptionInfo1).getCardId();
         doReturn(true).when(mMockSubManager).isActiveSubscriptionId(1);
 
         doReturn(2).when(mMockSubscriptionInfo2).getSubscriptionId();
+        doReturn(2).when(mMockSubscriptionInfo2).getCardId();
         doReturn(false).when(mMockSubManager).isActiveSubscriptionId(2);
 
         ArrayList<SubscriptionInfo> oppSubList = new ArrayList<>();
         oppSubList.add(mMockSubscriptionInfo1);
         oppSubList.add(mMockSubscriptionInfo2);
         doReturn(oppSubList).when(mMockSubManager).getOpportunisticSubscriptions();
+        doReturn(oppSubList).when(mMockSubManager).getAvailableSubscriptionInfoList();
 
         Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
         intent.setAction(ONSProfileConfigurator.ACTION_ONS_ESIM_CONFIG);
@@ -179,8 +200,8 @@ public class ONSProfileConfiguratorTest extends ONSBaseTest {
                         PendingIntent.FLAG_MUTABLE);
 
         boolean res = mOnsProfileConfigurator.deleteInactiveOpportunisticSubscriptions(2);
-        verify(mMockEuiccMngr).deleteSubscription(2, callbackIntent2);
-        verifyNoMoreInteractions(mMockEuiccMngr);
+        verify(mMockEuiccMngrCard2).deleteSubscription(2, callbackIntent2);
+        verifyNoMoreInteractions(mMockEuiccMngrCard2);
         //verify(mMockEuiccManager).deleteSubscription(2, callbackIntent2);
         // verify(mOnsProfileConfigurator).deleteOldOpportunisticESimsOfPSIMOperator(TEST_SUB_ID);
         assertEquals(res, true);

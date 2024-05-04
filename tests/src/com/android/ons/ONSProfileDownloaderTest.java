@@ -31,6 +31,7 @@ import android.os.Looper;
 import android.os.PersistableBundle;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.euicc.DownloadableSubscription;
 import android.telephony.euicc.EuiccManager;
 import android.util.Log;
@@ -47,12 +48,17 @@ import org.mockito.MockitoAnnotations;
 public class ONSProfileDownloaderTest extends ONSBaseTest {
     private static final String TAG = ONSProfileDownloaderTest.class.getName();
     private static final int TEST_SUB_ID = 1;
+    private static final int TEST_EUICC_CARD_ID = 1;
     private static final String TEST_SMDP_ADDRESS = "TEST-ESIM.COM";
 
     @Mock
     Context mMockContext;
     @Mock
-    EuiccManager mMockEUICCManager;
+    EuiccManager mMockEuiccManager;
+    @Mock
+    EuiccManager mMockEuiccManagerForCard1;
+    @Mock
+    SubscriptionManager mMockSubManager;
     @Mock
     SubscriptionInfo mMockSubInfo;
     @Mock
@@ -97,13 +103,16 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         PersistableBundle config = new PersistableBundle();
         config.putString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING, null);
         doReturn(config).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUB_ID);
+        doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+        doReturn(false).when(mMockSubInfo).isEmbedded();
 
         ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
-                mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig, null);
+                mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                mMockONSProfileConfig, null);
 
         onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
 
-        verify(mMockEUICCManager, never()).downloadSubscription(null, true, null);
+        verify(mMockEuiccManager, never()).downloadSubscription(null, true, null);
     }
 
     @Test
@@ -132,9 +141,12 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
+                doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+                doReturn(false).when(mMockSubInfo).isEmbedded();
+
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
-                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
-                        mListener);
+                        mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                        mMockONSProfileConfig, mListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -174,9 +186,12 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
+                doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+                doReturn(false).when(mMockSubInfo).isEmbedded();
+
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
-                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
-                        mMockDownloadListener);
+                        mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                        mMockONSProfileConfig, mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -199,7 +214,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
             e.printStackTrace();
         }
 
-        verifyZeroInteractions(mMockEUICCManager);
+        verifyZeroInteractions(mMockEuiccManager);
         workerThread.exit();
     }
 
@@ -209,9 +224,12 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
+                doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+                doReturn(false).when(mMockSubInfo).isEmbedded();
+
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
-                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
-                        mMockDownloadListener);
+                        mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                        mMockONSProfileConfig, mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -256,9 +274,12 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
+                doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+                doReturn(false).when(mMockSubInfo).isEmbedded();
+
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
-                        mMockDownloadListener);
+                        mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                        mMockONSProfileConfig, mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -310,9 +331,12 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
+                doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+                doReturn(false).when(mMockSubInfo).isEmbedded();
+
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
-                        mMockDownloadListener);
+                        mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                        mMockONSProfileConfig, mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -364,9 +388,12 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
+                doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+                doReturn(false).when(mMockSubInfo).isEmbedded();
+
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
-                        mMockDownloadListener);
+                        mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                        mMockONSProfileConfig, mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -418,9 +445,12 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
+                doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+                doReturn(false).when(mMockSubInfo).isEmbedded();
+
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
-                        mMockDownloadListener);
+                        mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                        mMockONSProfileConfig, mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -459,9 +489,12 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         Runnable runnable = new Runnable() {
             @Override
             public void run() {
+                doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+                doReturn(false).when(mMockSubInfo).isEmbedded();
+
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
-                        mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
-                        mMockDownloadListener);
+                        mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                        mMockONSProfileConfig, mMockDownloadListener);
 
                 ONSProfileDownloader.DownloadHandler downloadHandler =
                         onsProfileDownloader.new DownloadHandler();
@@ -598,17 +631,19 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         PersistableBundle config = new PersistableBundle();
         config.putString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING, TEST_SMDP_ADDRESS);
         doReturn(config).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUB_ID);
+        doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+        doReturn(false).when(mMockSubInfo).isEmbedded();
 
         ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
-                mMockCarrierConfigManager, mMockEUICCManager, mMockONSProfileConfig,
-                mMockDownloadListener);
+                mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                mMockONSProfileConfig, mMockDownloadListener);
 
         //When multiple download requests are received, download should be triggered only once.
         onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
         onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
         onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
         onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
-        verify(mMockEUICCManager, times(1)).downloadSubscription(any(), eq(true), any());
+        verify(mMockEuiccManager, times(1)).downloadSubscription(any(), eq(true), any());
 
         //Simulate response for download request from LPA.
         Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
@@ -635,12 +670,15 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
         onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
         onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
-        verify(mMockEUICCManager, times(1)).downloadSubscription(any(), eq(true), any());
+        verify(mMockEuiccManager, times(1)).downloadSubscription(any(), eq(true), any());
     }
 
     @Test
     public void testDownloadRequestFailures() {
         doReturn(TEST_SUB_ID).when(mMockSubInfo).getSubscriptionId();
+        doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+        doReturn(false).when(mMockSubInfo).isEmbedded();
+
         PersistableBundle invalidConfig = new PersistableBundle();
         invalidConfig.putString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING, "");
 
@@ -653,13 +691,9 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 .when(mMockCarrierConfigManager)
                 .getConfigForSubId(TEST_SUB_ID);
 
-        ONSProfileDownloader onsProfileDownloader =
-                new ONSProfileDownloader(
-                        mContext,
-                        mMockCarrierConfigManager,
-                        mMockEUICCManager,
-                        mMockONSProfileConfig,
-                        mMockDownloadListener);
+        ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
+                mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                mMockONSProfileConfig, mMockDownloadListener);
 
         // First download request to be failed with INVALID_SMDP_ADDRESS error because of empty SMDP
         // server address in configuration.
@@ -667,12 +701,12 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
                 onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
         assertEquals(DownloadProfileResult.INVALID_SMDP_ADDRESS, retryResultCode);
 
-        verify(mMockEUICCManager, never()).downloadSubscription(any(), eq(true), any());
+        verify(mMockEuiccManager, never()).downloadSubscription(any(), eq(true), any());
 
         // Second Download request should be success and processed to EuiccManager.
         retryResultCode = onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
         assertEquals(DownloadProfileResult.SUCCESS, retryResultCode);
-        verify(mMockEUICCManager).downloadSubscription(any(), eq(true), any());
+        verify(mMockEuiccManager).downloadSubscription(any(), eq(true), any());
 
         // Since download request is in progress, no further request to be sent to EuiccManager.
         // They should return with DUPLICATE_REQUEST error.
@@ -682,7 +716,33 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         retryResultCode = onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
         assertEquals(DownloadProfileResult.DUPLICATE_REQUEST, retryResultCode);
 
-        verify(mMockEUICCManager).downloadSubscription(any(), eq(true), any());
+        verify(mMockEuiccManager).downloadSubscription(any(), eq(true), any());
+    }
+
+    @Test
+    public void testDownloadRequestWithPrimaryESim() {
+        doReturn(TEST_SUB_ID).when(mMockSubInfo).getSubscriptionId();
+        doReturn(TEST_SUB_ID).when(mMockSubInfo).getCardId();
+        doReturn(true).when(mMockSubInfo).isEmbedded();
+        doReturn(mMockEuiccManagerForCard1).when(mMockEuiccManager)
+                .createForCardId(TEST_EUICC_CARD_ID);
+        PersistableBundle config = new PersistableBundle();
+        config.putInt(CarrierConfigManager.KEY_ESIM_DOWNLOAD_RETRY_BACKOFF_TIMER_SEC_INT, 1);
+        config.putInt(CarrierConfigManager.KEY_ESIM_MAX_DOWNLOAD_RETRY_ATTEMPTS_INT, 2);
+        config.putString(CarrierConfigManager.KEY_SMDP_SERVER_ADDRESS_STRING, TEST_SMDP_ADDRESS);
+        doReturn(config).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUB_ID);
+
+        // Check null subscription info - eSIM case
+        doReturn(null).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+        verify(mMockEuiccManagerForCard1, never()).downloadSubscription(any(), eq(true), any());
+
+        doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
+        ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
+                mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
+                mMockONSProfileConfig, mMockDownloadListener);
+
+        onsProfileDownloader.downloadProfile(TEST_SUB_ID);
+        verify(mMockEuiccManagerForCard1, times(1)).downloadSubscription(any(), eq(true), any());
     }
 
     @After
