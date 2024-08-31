@@ -21,10 +21,10 @@ android_test {
     name: "ONSTests",
     srcs: ["src/com/android/ons//**/*.java"],
     libs: [
-        "android.test.runner",
+        "android.test.runner.stubs.system",
         "telephony-common",
-        "android.test.mock",
-        "android.test.base",
+        "android.test.mock.stubs.system",
+        "android.test.base.stubs.system",
     ],
     static_libs: [
         "androidx.test.rules",
