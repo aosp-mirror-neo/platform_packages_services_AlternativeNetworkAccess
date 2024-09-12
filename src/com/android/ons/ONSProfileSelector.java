@@ -323,7 +323,13 @@ public class ONSProfileSelector {
         return null;
     }
 
-    public boolean isOpprotunisticSub(int subId) {
+    /**
+     * Return whether the subId is for an opportunistic subscription.
+     *
+     * @param subId the subId of the subscription.
+     * @return true if the subscription is opportunistic
+     */
+    public boolean isOpportunisticSub(int subId) {
         if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.size() == 0)) {
             return false;
         }
@@ -344,7 +350,7 @@ public class ONSProfileSelector {
         }
 
         for (AvailableNetworkInfo availableNetworkInfo : availableNetworks) {
-            if (!isOpprotunisticSub(availableNetworkInfo.getSubId())) {
+            if (!isOpportunisticSub(availableNetworkInfo.getSubId())) {
                 return false;
             }
         }
@@ -840,7 +846,7 @@ public class ONSProfileSelector {
     public void selectProfileForData(int subId, boolean needValidation,
             ISetOpportunisticDataCallback callbackStub) {
         if ((subId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID)
-                || (isOpprotunisticSub(subId) && mSubscriptionManager.isActiveSubId(subId))) {
+                || (isOpportunisticSub(subId) && mSubscriptionManager.isActiveSubId(subId))) {
             try {
                 mSubscriptionManager.setPreferredDataSubscriptionId(subId, needValidation,
                         mHandler::post, result -> sendSetOpptCallbackHelper(callbackStub, result));
@@ -862,7 +868,7 @@ public class ONSProfileSelector {
             log("Inactive sub passed for preferred data " + subId);
             if (Compatibility.isChangeEnabled(
                     OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
-                if (isOpprotunisticSub(subId)) {
+                if (isOpportunisticSub(subId)) {
                     sendSetOpptCallbackHelper(callbackStub,
                             TelephonyManager.SET_OPPORTUNISTIC_SUB_INACTIVE_SUBSCRIPTION);
                 } else {
@@ -877,7 +883,10 @@ public class ONSProfileSelector {
     }
 
     public int getPreferredDataSubscriptionId() {
-        return mSubscriptionManager.getPreferredDataSubscriptionId();
+        final int preferredDataSubId = mSubscriptionManager.getPreferredDataSubscriptionId();
+        return isOpportunisticSub(preferredDataSubId)
+            ? preferredDataSubId
+            : SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
     }
 
     /**
