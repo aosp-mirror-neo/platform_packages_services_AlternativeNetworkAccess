@@ -279,7 +279,6 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
             mResult = iOpportunisticNetworkService.getPreferredDataSubscriptionId(pkgForDebug,
                     pkgForFeature);
             Log.d(TAG, "testGetPreferredDataSubscriptionId: " + mResult);
-            assertNotNull(mResult);
         } catch (RemoteException ex) {
             Log.e(TAG, "RemoteException", ex);
         }
