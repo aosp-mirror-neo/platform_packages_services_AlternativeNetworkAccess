@@ -20,6 +20,7 @@ import static android.telephony.TelephonyManager.ENABLE_FEATURE_MAPPING;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.ActivityManager;
 import android.app.Service;
 import android.app.compat.CompatChanges;
 import android.compat.Compatibility;
@@ -40,6 +41,7 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.os.TelephonyServiceManager.ServiceRegisterer;
+import android.os.UserHandle;
 import android.os.UserManager;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.CarrierConfigManager;
@@ -210,7 +212,7 @@ public class OpportunisticNetworkService extends Service {
 
     private boolean hasOpportunisticSubPrivilege(String callingPackage, int subId) {
         return mTelephonyManager.hasCarrierPrivileges(subId)
-                || mSubscriptionManager.canManageSubscription(
+                || canManageSubscription(
                 mProfileSelector.getOpprotunisticSubInfo(subId), callingPackage);
     }
 
@@ -828,6 +830,15 @@ public class OpportunisticNetworkService extends Service {
         if (!mPackageManager.hasSystemFeature(telephonyFeature)) {
             throw new UnsupportedOperationException(
                     methodName + " is unsupported without " + telephonyFeature);
+        }
+    }
+
+    private boolean canManageSubscription(SubscriptionInfo subInfo, String packageName) {
+        if (Flags.hsumPackageManager() && UserManager.isHeadlessSystemUserMode()) {
+            return mSubscriptionManager.canManageSubscriptionAsUser(subInfo, packageName,
+                    UserHandle.of(ActivityManager.getCurrentUser()));
+        } else {
+            return mSubscriptionManager.canManageSubscription(subInfo, packageName);
         }
     }
 
