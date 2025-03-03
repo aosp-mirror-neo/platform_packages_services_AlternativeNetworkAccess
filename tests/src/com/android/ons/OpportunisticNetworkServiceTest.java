@@ -46,7 +46,6 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.internal.telephony.IOns;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
-import com.android.internal.telephony.flags.Flags;
 
 import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges;
 
@@ -443,8 +442,6 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
     @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testTelephonyFeatureAndCompatChanges() throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_ENFORCE_TELEPHONY_FEATURE_MAPPING_FOR_PUBLIC_APIS);
-
         ArrayList<String> mccMncs = new ArrayList<>();
         mccMncs.add("310210");
         AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
