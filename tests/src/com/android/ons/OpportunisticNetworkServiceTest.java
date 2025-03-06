@@ -176,9 +176,8 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
                 Log.d(TAG, "result: " + result);
             }
         };
-        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback);
-        onsConfigInput.setPrimarySub(1);
-        onsConfigInput.setPreferredDataSub(availableNetworkInfos.get(0).getSubId());
+        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback,
+                availableNetworkInfos.get(0).getSubId(), 1);
         ArrayList<SubscriptionInfo> subscriptionInfos = new ArrayList<SubscriptionInfo>();
 
         // Case 1: There is no Carrier app using ONS.
@@ -217,9 +216,8 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
                 Log.d(TAG, "result: " + result);
             }
         };
-        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback);
-        onsConfigInput.setPrimarySub(1);
-        onsConfigInput.setPreferredDataSub(availableNetworkInfos.get(0).getSubId());
+        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback,
+                availableNetworkInfos.get(0).getSubId(), 1);
         ArrayList<SubscriptionInfo> subscriptionInfos = new ArrayList<SubscriptionInfo>();
 
         doReturn(subscriptionInfos).when(mSubscriptionManager).getActiveSubscriptionInfoList(false);
@@ -349,9 +347,8 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
                 Log.d(TAG, "result: " + result);
             }
         };
-        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback);
-        onsConfigInput.setPrimarySub(1);
-        onsConfigInput.setPreferredDataSub(availableNetworkInfos.get(0).getSubId());
+        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback,
+                availableNetworkInfos.get(0).getSubId(), 1);
         doReturn(onsConfigInput).when(mockONSConfigInputHashMap).get(CARRIER_APP_CONFIG_NAME);
         doReturn(true).when(mockProfileSelector).hasOpportunisticSub(any());
         doReturn(false).when(mockProfileSelector).containStandaloneOppSubs(any());
