@@ -52,7 +52,6 @@ import java.util.stream.Collectors;
 public class ONSNetworkScanCtlr {
     private static final String LOG_TAG = "ONSNetworkScanCtlr";
     private static final boolean DBG = true;
-    private static final int SEARCH_PERIODICITY_SLOW = (int) TimeUnit.MINUTES.toSeconds(5);
     private static final int SEARCH_PERIODICITY_FAST = (int) TimeUnit.MINUTES.toSeconds(1);
     private static final int MAX_SEARCH_TIME = (int) TimeUnit.MINUTES.toSeconds(1);
     private static final int SCAN_RESTART_TIME = (int) TimeUnit.MINUTES.toMillis(1);
