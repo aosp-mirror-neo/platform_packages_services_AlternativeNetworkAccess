@@ -25,9 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * OpportunisticNetworkService implements ions.
- * It scans network and matches the results with opportunistic subscriptions.
- * Use the same to provide user opportunistic data in areas with corresponding networks
+ * ONSConfigInput is data class that passes configuration parameters to
+ * {@link OpportunisticNetworkService}.
  */
 public class ONSConfigInput {
     private static final String TAG = "ONSConfigInput";

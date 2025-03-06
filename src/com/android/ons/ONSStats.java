@@ -26,6 +26,9 @@ import com.android.ons.ONSProfileDownloader.DownloadRetryResultCode;
 
 import java.util.List;
 
+/**
+ * ONSStats is responsible for collecting and reporting ONS statistics.
+ */
 public class ONSStats {
     private static final String ONS_ATOM_LOG_FILE = "ons_atom_log_info";
     private static final String KEY_PROVISIONING_RESULT = "_provisioning_result";

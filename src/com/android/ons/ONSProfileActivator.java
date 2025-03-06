@@ -44,8 +44,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * @class ONSProfileActivator
- * @brief ONSProfileActivator makes sure that the CBRS profile is downloaded, activated and grouped
+ * ONSProfileActivator makes sure that the CBRS profile is downloaded, activated and grouped
  * when an opportunistic data enabled pSIM is inserted.
  */
 public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfigListener,
