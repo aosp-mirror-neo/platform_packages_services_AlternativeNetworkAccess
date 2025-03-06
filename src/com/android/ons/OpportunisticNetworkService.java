@@ -213,7 +213,7 @@ public class OpportunisticNetworkService extends Service {
     private boolean hasOpportunisticSubPrivilege(String callingPackage, int subId) {
         return mTelephonyManager.hasCarrierPrivileges(subId)
                 || canManageSubscription(
-                mProfileSelector.getOpprotunisticSubInfo(subId), callingPackage);
+                mProfileSelector.getOpportunisticSubInfo(subId), callingPackage);
     }
 
     private final IOns.Stub mBinder = new IOns.Stub() {
@@ -581,7 +581,7 @@ public class OpportunisticNetworkService extends Service {
                 return;
             }
 
-            if (!mProfileSelector.hasOpprotunisticSub(availableNetworks)) {
+            if (!mProfileSelector.hasOpportunisticSub(availableNetworks)) {
                 log("No opportunistic subscriptions received");
                 if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                     sendUpdateNetworksCallbackHelper(callbackStub,
@@ -708,7 +708,7 @@ public class OpportunisticNetworkService extends Service {
         try {
             if ((availableNetworks != null) && (availableNetworks.size() > 0)) {
                 /* all subscriptions should be opportunistic subscriptions */
-                if (!mProfileSelector.hasOpprotunisticSub(availableNetworks)) {
+                if (!mProfileSelector.hasOpportunisticSub(availableNetworks)) {
                     log("No opportunistic subscriptions received");
                     if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                         sendUpdateNetworksCallbackHelper(callbackStub,

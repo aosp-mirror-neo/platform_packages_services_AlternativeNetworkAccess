@@ -353,7 +353,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         onsConfigInput.setPrimarySub(1);
         onsConfigInput.setPreferredDataSub(availableNetworkInfos.get(0).getSubId());
         doReturn(onsConfigInput).when(mockONSConfigInputHashMap).get(CARRIER_APP_CONFIG_NAME);
-        doReturn(true).when(mockProfileSelector).hasOpprotunisticSub(any());
+        doReturn(true).when(mockProfileSelector).hasOpportunisticSub(any());
         doReturn(false).when(mockProfileSelector).containStandaloneOppSubs(any());
         mOpportunisticNetworkService.mIsEnabled = true;
         mOpportunisticNetworkService.mONSConfigInputHashMap = mockONSConfigInputHashMap;

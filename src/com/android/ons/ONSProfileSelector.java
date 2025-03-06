@@ -311,7 +311,7 @@ public class ONSProfileSelector {
         return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
     }
 
-    public SubscriptionInfo getOpprotunisticSubInfo(int subId) {
+    public SubscriptionInfo getOpportunisticSubInfo(int subId) {
         if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.size() == 0)) {
             return null;
         }
@@ -341,7 +341,7 @@ public class ONSProfileSelector {
         return false;
     }
 
-    public boolean hasOpprotunisticSub(List<AvailableNetworkInfo> availableNetworks) {
+    public boolean hasOpportunisticSub(List<AvailableNetworkInfo> availableNetworks) {
         if ((availableNetworks == null) || (availableNetworks.size() == 0)) {
             return false;
         }
@@ -558,7 +558,7 @@ public class ONSProfileSelector {
             return;
         }
 
-        stopProfileScanningPrecedure();
+        stopProfileScanningProcedure();
         mIsEnabled = true;
         mAvailableNetworkInfos = availableNetworks;
         /* sort in the order of priority */
@@ -731,7 +731,7 @@ public class ONSProfileSelector {
         }
         int phoneId = info.getSimSlotIndex();
         /*  Todo: b/135067156
-         *  Reenable this code once 135067156 is fixed
+         *  Re-enable this code once 135067156 is fixed
         if (mSubscriptionBoundTelephonyManager.isModemEnabledForSlot(phoneId) == enable) {
             logDebug("modem is already enabled ");
             return true;
@@ -741,12 +741,12 @@ public class ONSProfileSelector {
     }
 
     private void stopProfileSelectionProcess(IUpdateAvailableNetworksCallback callbackStub) {
-        stopProfileScanningPrecedure();
+        stopProfileScanningProcedure();
         logDebug("stopProfileSelection");
         disableOpportunisticModem(callbackStub);
     }
 
-    private void stopProfileScanningPrecedure() {
+    private void stopProfileScanningProcedure() {
         synchronized (mLock) {
             if (mNetworkScanCallback != null) {
                 sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
@@ -926,7 +926,7 @@ public class ONSProfileSelector {
                 }
             }
             // If the slot doesn't have active opportunistic profile anymore, it's back to
-            // DSDS use-case. Make sure the the modem stack is enabled.
+            // DSDS use-case. Make sure the modem stack is enabled.
             if (!hasActiveOpptProfile) mTelephonyManager.enableModemForSlot(i, true);
         }
     }

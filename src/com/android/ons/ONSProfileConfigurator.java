@@ -128,9 +128,9 @@ public class ONSProfileConfigurator {
     protected void groupWithPSIMAndSetOpportunistic(
             SubscriptionInfo opportunisticESIM, ParcelUuid groupUuid) {
         if (groupUuid != null && groupUuid.equals(opportunisticESIM.getGroupUuid())) {
-            Log.d(TAG, "opportunistc eSIM and CBRS pSIM already grouped");
+            Log.d(TAG, "opportunistic eSIM and CBRS pSIM already grouped");
         } else {
-            Log.d(TAG, "Grouping opportunistc eSIM and CBRS pSIM");
+            Log.d(TAG, "Grouping opportunistic eSIM and CBRS pSIM");
             ArrayList<Integer> subList = new ArrayList<>();
             subList.add(opportunisticESIM.getSubscriptionId());
             try {
