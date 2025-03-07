@@ -66,16 +66,16 @@ public class ONSProfileSelector {
     private static final int INVALID_SEQUENCE_ID = -1;
     private static final int START_SEQUENCE_ID = 1;
 
-    /* message to indicate profile update */
+    /** Message to indicate profile update */
     private static final int MSG_PROFILE_UPDATE = 1;
 
-    /* message to indicate start of profile selection process */
+    /** Message to indicate start of profile selection process */
     private static final int MSG_START_PROFILE_SELECTION = 2;
 
-    /* message to indicate Subscription switch completion */
+    /** Message to indicate Subscription switch completion */
     private static final int MSG_SUB_SWITCH_COMPLETE = 3;
 
-    /* message to stop profile selection process */
+    /** Message to stop profile selection process */
     private static final int MSG_STOP_PROFILE_SELECTION = 4;
 
     private boolean mIsEnabled = false;
@@ -132,7 +132,7 @@ public class ONSProfileSelector {
                         return;
                     }
 
-                    /* stop scanning further */
+                    // stop scanning further
                     mNetworkScanCtlr.stopNetworkScan();
                     handleNetworkScanResult(subId);
                 }
@@ -170,7 +170,7 @@ public class ONSProfileSelector {
                 }
 
                 private void handleNetworkScanResult(int subId) {
-                    /* if subscription is already active, just enable modem */
+                    // if subscription is already active, just enable modem
                     if (mSubscriptionManager.isActiveSubId(subId)) {
                         if (enableModem(subId, true)) {
                             sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
@@ -211,12 +211,12 @@ public class ONSProfileSelector {
             };
 
     /**
-     * interface call back to confirm profile selection
+     * Interface call back to confirm profile selection
      */
     public interface ONSProfileSelectionCallback {
 
         /**
-         * interface call back to confirm profile selection
+         * Interface call back to confirm profile selection
          */
         void onProfileSelectionDone();
     }
@@ -434,7 +434,7 @@ public class ONSProfileSelector {
     }
 
     private void onSubSwitchComplete(int subId) {
-        /* Ignore if this is callback for an older request */
+        // Ignore if this is callback for an older request
         if (mSubId != subId) {
             return;
         }
@@ -469,8 +469,8 @@ public class ONSProfileSelector {
         List<AvailableNetworkInfo> filteredAvailableNetworks =
                 new ArrayList<>();
 
-        /* instead of checking each element of a list every element of the other, sort them in
-           the order of sub id and compare to improve the filtering performance. */
+        // instead of checking each element of a list every element of the other, sort them in
+        // the order of sub id and compare to improve the filtering performance.
         Collections.sort(subscriptionInfoList, new SortSubInfo());
         Collections.sort(availableNetworks, new SortAvailableNetworks());
         int availableNetworksIndex = 0;
@@ -534,7 +534,7 @@ public class ONSProfileSelector {
             return;
         }
 
-        /* Check if ports are available on the embedded slot */
+        // Check if ports are available on the embedded slot
         int availSIMPortIndex = getAvailableESIMPortIndex();
         if (availSIMPortIndex == TelephonyManager.INVALID_PORT_INDEX) {
             logDebug("SIM port not available.");
@@ -545,9 +545,8 @@ public class ONSProfileSelector {
 
         if (isSame(availableNetworks, mAvailableNetworkInfos)) {
             logDebug("received duplicate requests");
-            /* If we receive same request more than once, send abort response for earlier one
-               and send actual response for the latest callback.
-            */
+            // If we receive same request more than once, send abort response for earlier one
+            // and send actual response for the latest callback.
             sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
             mNetworkScanCallback = callbackStub;
@@ -557,7 +556,7 @@ public class ONSProfileSelector {
         stopProfileScanningProcedure();
         mIsEnabled = true;
         mAvailableNetworkInfos = availableNetworks;
-        /* sort in the order of priority */
+        // sort in the order of priority
         Collections.sort(mAvailableNetworkInfos, new SortAvailableNetworksInPriority());
         logDebug("availableNetworks: " + availableNetworks);
 
@@ -569,7 +568,7 @@ public class ONSProfileSelector {
             if ((filteredAvailableNetworks.size() == 1)
                     && ((filteredAvailableNetworks.get(0).getMccMncs() == null)
                     || (filteredAvailableNetworks.get(0).getMccMncs().size() == 0))) {
-                /* if subscription is not active, activate the sub */
+                // if subscription is not active, activate the sub
                 if (!mSubscriptionManager.isActiveSubId(filteredAvailableNetworks.get(0).getSubId())) {
                     mNetworkScanCallback = callbackStub;
                     switchToSubscription(filteredAvailableNetworks.get(0).getSubId(),
@@ -593,7 +592,7 @@ public class ONSProfileSelector {
                 }
             } else {
                 mNetworkScanCallback = callbackStub;
-                /* start scan immediately */
+                // start scan immediately
                 mNetworkScanCtlr.startFastNetworkScan(filteredAvailableNetworks);
             }
         } else if (mOppSubscriptionInfos.size() == 0) {
@@ -605,7 +604,7 @@ public class ONSProfileSelector {
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
             }
-            /* check if no profile */
+            // check if no profile
             logDebug("stopping scan");
             mNetworkScanCtlr.stopNetworkScan();
         }
@@ -768,7 +767,7 @@ public class ONSProfileSelector {
     }
 
     /**
-     * select opportunistic profile for data if passing a valid subId.
+     * Select opportunistic profile for data if passing a valid subId.
      * @param subId : opportunistic subId or SubscriptionManager.DEFAULT_SUBSCRIPTION_ID if
      *              deselecting previously set preference.
      */
@@ -819,7 +818,7 @@ public class ONSProfileSelector {
     }
 
     /**
-     * stop profile selection procedure
+     * Stop profile selection procedure
      */
     public void stopProfileSelection(IUpdateAvailableNetworksCallback callbackStub) {
         logDebug("stopProfileSelection");
@@ -910,7 +909,7 @@ public class ONSProfileSelector {
                 }
             }
         };
-        /* register for profile update events */
+        // register for profile update events
         mSubscriptionManager.addOnOpportunisticSubscriptionsChangedListener(
                 AsyncTask.SERIAL_EXECUTOR, mProfileChangeListener);
     }

@@ -89,7 +89,7 @@ public class OpportunisticNetworkService extends Service {
     private static final String CARRIER_APP_CONFIG_NAME = "carrierApp";
     private static final String SYSTEM_APP_CONFIG_NAME = "systemApp";
     private static final boolean DBG = true;
-    /* message to indicate sim state update */
+    /** Message to indicate sim state update */
     private static final int MSG_SIM_STATE_CHANGE = 1;
     @VisibleForTesting protected CarrierConfigManager mCarrierConfigManager;
     @VisibleForTesting protected UserManager mUserManager;
@@ -252,7 +252,7 @@ public class OpportunisticNetworkService extends Service {
         }
 
         /**
-         * is Opportunistic Network service enabled
+         * Is Opportunistic Network service enabled
          *
          * This method should be called to determine if the Opportunistic Network service
          * is enabled
@@ -281,7 +281,7 @@ public class OpportunisticNetworkService extends Service {
          *
          * <p>Requires that the calling app has carrier privileges on both primary and
          * secondary subscriptions (see
-         * {@link #hasCarrierPrivileges}), or has permission
+         * {@link TelephonyManager#hasCarrierPrivileges}), or has permission
          * {@link android.Manifest.permission#MODIFY_PHONE_STATE MODIFY_PHONE_STATE}.
          * @param subId which opportunistic subscription
          * {@link SubscriptionManager#getOpportunisticSubscriptions} is preferred for cellular data.
@@ -292,7 +292,7 @@ public class OpportunisticNetworkService extends Service {
          *
          */
         public void setPreferredDataSubscriptionId(int subId, boolean needValidation,
-                ISetOpportunisticDataCallback callbackStub, String callingPackage) {
+                ISetOpportunisticDataCallback callback, String callingPackage) {
             logDebug("setPreferredDataSubscriptionId subId:" + subId
                     + " callingPackage:" + callingPackage);
             if (!enforceModifyPhoneStatePermission(mContext)) {
@@ -304,7 +304,7 @@ public class OpportunisticNetworkService extends Service {
                 }
             } else {
                 if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) != null) {
-                    sendSetOpptCallbackHelper(callbackStub,
+                    sendSetOpptCallbackHelper(callback,
                         TelephonyManager.SET_OPPORTUNISTIC_SUB_VALIDATION_FAILED);
                     return;
                 }
@@ -315,7 +315,7 @@ public class OpportunisticNetworkService extends Service {
 
             final long identity = Binder.clearCallingIdentity();
             try {
-                mProfileSelector.selectProfileForData(subId, needValidation, callbackStub);
+                mProfileSelector.selectProfileForData(subId, needValidation, callback);
             } finally {
                 Binder.restoreCallingIdentity(identity);
             }
@@ -325,7 +325,7 @@ public class OpportunisticNetworkService extends Service {
          * Get preferred default data sub Id
          *
          * <p>Requires that the calling app has carrier privileges
-         * (see {@link #hasCarrierPrivileges}),or has either
+         * (see {@link TelephonyManager#hasCarrierPrivileges}),or has either
          * {@link android.Manifest.permission#READ_PRIVILEGED_PHONE_STATE} or.
          * {@link android.Manifest.permission#READ_PHONE_STATE} permission.
          * @return subId preferred opportunistic subscription id or
@@ -373,29 +373,29 @@ public class OpportunisticNetworkService extends Service {
          * <p>
          * <p>Requires that the calling app has carrier privileges on both primary and
          * secondary subscriptions (see
-         * {@link #hasCarrierPrivileges}), or has permission
+         * {@link TelephonyManager#hasCarrierPrivileges}), or has permission
          * {@link android.Manifest.permission#MODIFY_PHONE_STATE MODIFY_PHONE_STATE}.
          *
          */
         public void updateAvailableNetworks(List<AvailableNetworkInfo> availableNetworks,
-                IUpdateAvailableNetworksCallback callbackStub, String callingPackage) {
+                IUpdateAvailableNetworksCallback callback, String callingPackage) {
             logDebug("updateAvailableNetworks: " + availableNetworks);
-            /* check if system app */
+            // check if system app
             if (enforceModifyPhoneStatePermission(mContext)) {
 
                 enforceTelephonyFeatureWithException(callingPackage,
                         PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "updateAvailableNetworks");
 
-                handleSystemAppAvailableNetworks(availableNetworks, callbackStub);
+                handleSystemAppAvailableNetworks(availableNetworks, callback);
             } else {
-                /* check if the app has primary carrier permission */
+                // check if the app has primary carrier permission
                 TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
                         mSubscriptionManager.getDefaultSubscriptionId(), "updateAvailableNetworks");
 
                 enforceTelephonyFeatureWithException(callingPackage,
                         PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "updateAvailableNetworks");
 
-                handleCarrierAppAvailableNetworks(availableNetworks, callbackStub,
+                handleCarrierAppAvailableNetworks(availableNetworks, callback,
                         callingPackage);
             }
         }
@@ -410,7 +410,7 @@ public class OpportunisticNetworkService extends Service {
     public void onCreate() {
         startWorkerThreadAndInit();
 
-        /* register the service */
+        // register the service
         ServiceRegisterer opportunisticNetworkServiceRegisterer = TelephonyFrameworkInitializer
                 .getTelephonyServiceManager()
                 .getOpportunisticNetworkServiceRegisterer();
@@ -483,9 +483,9 @@ public class OpportunisticNetworkService extends Service {
     }
 
     /**
-     * initialize ONS and register as service.
+     * Initialize ONS and register as service.
      * Read persistent state to update enable state
-     * Start sub components if already enabled.
+     * Start subcomponents if already enabled.
      * @param context context instance
      */
     @VisibleForTesting
@@ -604,7 +604,7 @@ public class OpportunisticNetworkService extends Service {
                     TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
                         availableNetworkInfo.getSubId(), "updateAvailableNetworks");
                 } else {
-                    /* check if the app has opportunistic carrier permission */
+                    // check if the app has opportunistic carrier permission
                     if (!hasOpportunisticSubPrivilege(callingPackage,
                         availableNetworkInfo.getSubId())) {
                         log("No carrier privilege for opportunistic subscription");
@@ -624,7 +624,7 @@ public class OpportunisticNetworkService extends Service {
                             availableNetworks.get(0).getSubId());
                     mONSConfigInputHashMap.put(CARRIER_APP_CONFIG_NAME, onsConfigInput);
                 }
-                /* standalone opportunistic subscription should be handled in priority. */
+                // standalone opportunistic subscription should be handled in priority.
                 if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME) != null) {
                     if (mProfileSelector.containStandaloneOppSubs(mONSConfigInputHashMap.get(
                             SYSTEM_APP_CONFIG_NAME).availableNetworkInfos())) {
@@ -634,7 +634,7 @@ public class OpportunisticNetworkService extends Service {
                 }
 
                 if (mIsEnabled) {
-                    /*  if carrier is reporting availability, then it takes higher priority. */
+                    //  if carrier is reporting availability, then it takes higher priority.
                     mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
                 } else {
                     if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
@@ -657,8 +657,8 @@ public class OpportunisticNetworkService extends Service {
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
                     return;
                 }
-                /* if carrier is reporting unavailability, then decide whether to start
-                   system app request or not. */
+                // If carrier is reporting unavailability, then decide whether to start
+                // system app request or not.
                 if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME) != null) {
                     sendUpdateNetworksCallbackHelper(callbackStub,
                             TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
@@ -704,7 +704,7 @@ public class OpportunisticNetworkService extends Service {
         final long identity = Binder.clearCallingIdentity();
         try {
             if ((availableNetworks != null) && (availableNetworks.size() > 0)) {
-                /* all subscriptions should be opportunistic subscriptions */
+                // all subscriptions should be opportunistic subscriptions
                 if (!mProfileSelector.hasOpportunisticSub(availableNetworks)) {
                     log("No opportunistic subscriptions received");
                     if (Compatibility.isChangeEnabled(CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
@@ -719,8 +719,8 @@ public class OpportunisticNetworkService extends Service {
                 }
                 mONSConfigInputHashMap.put(SYSTEM_APP_CONFIG_NAME,
                         new ONSConfigInput(availableNetworks, callbackStub));
-                /* reporting availability. proceed if carrier app has not requested any, but
-                   standalone opportunistic subscription should be handled in priority. */
+                // Reporting availability. proceed if carrier app has not requested any, but
+                // standalone opportunistic subscription should be handled in priority.
                 if (mIsEnabled) {
                     if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) == null
                             || mProfileSelector.containStandaloneOppSubs(availableNetworks)) {
@@ -742,8 +742,8 @@ public class OpportunisticNetworkService extends Service {
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
                     return;
                 }
-                /* if system is reporting unavailability, then decide whether to start
-                   carrier app request or not. */
+                // If system is reporting unavailability, then decide whether to start carrier
+                // app request or not.
                 mONSConfigInputHashMap.put(SYSTEM_APP_CONFIG_NAME, null);
                 if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) == null) {
                     mProfileSelector.stopProfileSelection(callbackStub);

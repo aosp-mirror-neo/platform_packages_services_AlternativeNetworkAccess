@@ -57,7 +57,7 @@ public class ONSNetworkScanCtlr {
     private static final int SCAN_RESTART_TIME = (int) TimeUnit.MINUTES.toMillis(1);
     private final Object mLock = new Object();
 
-    /* message  to handle scan responses from modem */
+    /** Message  to handle scan responses from modem */
     private static final int MSG_SCAN_RESULTS_AVAILABLE = 1;
     private static final int MSG_SCAN_COMPLETE = 2;
     private static final int MSG_SCAN_ERROR = 3;
@@ -79,7 +79,7 @@ public class ONSNetworkScanCtlr {
                 AccessNetworkConstants.EutranBand.BAND_71},
         null);
 
-    /* scan object to keep track of current scan request */
+    /** Scan object to keep track of current scan request */
     private NetworkScan mCurrentScan;
     private boolean mIsScanActive;
     private NetworkScanRequest mCurrentScanRequest;
@@ -169,11 +169,11 @@ public class ONSNetworkScanCtlr {
     }
 
     /**
-     * analyze scan results
+     * Analyze scan results
      * @param results contains all available cells matching the scan request at current location.
      */
     public void analyzeScanResults(List<CellInfo> results) {
-        /* Inform registrants about availability of network */
+        // Inform registrants about availability of network
         if (!mIsScanActive || results == null) {
           return;
         }
@@ -202,7 +202,7 @@ public class ONSNetworkScanCtlr {
             }
         }
         if ((filteredResults.size() >= 1) && (mNetworkAvailableCallBack != null)) {
-            /* Todo: change to aggregate results on success. */
+            // Todo: change to aggregate results on success.
             mNetworkAvailableCallBack.onNetworkAvailability(filteredResults);
         }
     }
@@ -225,8 +225,8 @@ public class ONSNetworkScanCtlr {
     }
 
     /**
-     * initialize Network Scan controller
-     * @param c context
+     * Initialize Network Scan controller
+     * @param context context
      * @param telephonyManager Telephony manager instance
      * @param networkAvailableCallBack callback to be called when network selection is done
      */
@@ -303,7 +303,7 @@ public class ONSNetworkScanCtlr {
 
         mIs4gScanEnabled = getIs4gScanEnabled();
 
-        /* retrieve mcc mncs and bands for available networks */
+        // retrieve mcc mncs and bands for available networks
         for (AvailableNetworkInfo availableNetwork : availableNetworks) {
             mccMncs.addAll(availableNetwork.getMccMncs());
             List<RadioAccessSpecifier> radioAccessSpecifiers =
@@ -367,7 +367,7 @@ public class ONSNetworkScanCtlr {
     }
 
     /**
-     * start less interval network scan
+     * Start less interval network scan
      * @param availableNetworks list of subscriptions for which the scanning needs to be started.
      * @return true if successfully accepted request.
      */
@@ -381,15 +381,15 @@ public class ONSNetworkScanCtlr {
     private boolean startNetworkScan(NetworkScanRequest networkScanRequest) {
         NetworkScan networkScan;
         synchronized (mLock) {
-            /* if the request is same as existing one, then make sure to not proceed */
+            // if the request is same as existing one, then make sure to not proceed
             if (mIsScanActive && mCurrentScanRequest.equals(networkScanRequest)) {
                 return true;
             }
 
-            /* Need to stop current scan if we already have one */
+            // Need to stop current scan if we already have one
             stopNetworkScan();
 
-            /* user lower threshold to enable modem stack */
+            // user lower threshold to enable modem stack
             mRsrpEntryThreshold =
                 getIntCarrierConfig(
                     CarrierConfigManager.KEY_OPPORTUNISTIC_NETWORK_EXIT_THRESHOLD_RSRP_INT);
@@ -397,7 +397,7 @@ public class ONSNetworkScanCtlr {
             mSsRsrpEntryThreshold = getIntCarrierConfig(
                     CarrierConfigManager.OpportunisticNetwork.KEY_ENTRY_THRESHOLD_SS_RSRP_INT);
 
-            /* start new scan */
+            // start new scan
             networkScan = mTelephonyManager.requestNetworkScan(networkScanRequest,
                     mNetworkScanCallback);
 
@@ -423,7 +423,7 @@ public class ONSNetworkScanCtlr {
     }
 
     /**
-     * stop network scan
+     * Stop network scan
      */
     public void stopNetworkScan() {
         logDebug("stopNetworkScan");
