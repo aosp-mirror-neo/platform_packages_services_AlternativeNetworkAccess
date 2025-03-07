@@ -24,8 +24,6 @@ import android.telephony.SubscriptionManager;
 import com.android.ons.ONSProfileActivator.Result;
 import com.android.ons.ONSProfileDownloader.DownloadRetryResultCode;
 
-import java.util.List;
-
 /**
  * ONSStats is responsible for collecting and reporting ONS statistics.
  */
@@ -58,9 +56,10 @@ public class ONSStats {
         if (ignoreEvent(info)) {
             return false;
         }
+
         int statsCode = OnsStatsLog.ONS_OPPORTUNISTIC_ESIM_PROVISIONING_COMPLETE__ERROR_CODE__RESULT_UNKNOWN;
         if (info.isProvisioningResultUpdated()) {
-            switch (info.getProvisioningResult()) {
+            switch (info.provisioningResult()) {
                 case SUCCESS:
                     statsCode = OnsStatsLog.ONS_OPPORTUNISTIC_ESIM_PROVISIONING_COMPLETE__ERROR_CODE__RESULT_SUCCESS;
                     break;
@@ -92,7 +91,7 @@ public class ONSStats {
                     break;
             }
         } else {
-            switch (info.getDownloadResult()) {
+            switch (info.downloadResult()) {
                 case ERR_UNRESOLVABLE:
                     statsCode = OnsStatsLog.ONS_OPPORTUNISTIC_ESIM_PROVISIONING_COMPLETE__ERROR_CODE__RESULT_UNRESOLVABLE_ERROR;
                     break;
@@ -111,12 +110,12 @@ public class ONSStats {
         }
         OnsStatsLog.write(
                 OnsStatsLog.ONS_OPPORTUNISTIC_ESIM_PROVISIONING_COMPLETE,
-                getSimCarrierId(info.getPrimarySimSubId()),
-                info.getOppSimCarrierId(),
+                getSimCarrierId(info.primarySimSubId()),
+                info.oppSimCarrierId(),
                 info.isWifiConnected(),
                 statsCode,
-                info.getRetryCount(),
-                info.getDetailedErrCode());
+                info.retryCount(),
+                info.detailedErrCode());
         updateSharedPreferences(info);
         return true;
     }
@@ -126,39 +125,28 @@ public class ONSStats {
                 mContext.getSharedPreferences(ONS_ATOM_LOG_FILE, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
         if (info.isProvisioningResultUpdated()) {
-            editor.putInt(KEY_PROVISIONING_RESULT, info.getProvisioningResult().ordinal());
+            editor.putInt(KEY_PROVISIONING_RESULT, info.provisioningResult().ordinal());
             editor.remove(KEY_DOWNLOAD_RESULT);
         } else {
-            editor.putInt(KEY_DOWNLOAD_RESULT, info.getDownloadResult().ordinal());
+            editor.putInt(KEY_DOWNLOAD_RESULT, info.downloadResult().ordinal());
             editor.remove(KEY_PROVISIONING_RESULT);
         }
-        editor.putInt(KEY_PRIMARY_CARRIER_ID, getSimCarrierId(info.getPrimarySimSubId()))
-                .putInt(KEY_RETRY_COUNT, info.getRetryCount())
-                .putInt(KEY_OPP_CARRIER_ID, info.getOppSimCarrierId())
-                .putInt(KEY_DETAILED_ERROR_CODE, info.getDetailedErrCode())
+        editor.putInt(KEY_PRIMARY_CARRIER_ID, getSimCarrierId(info.primarySimSubId()))
+                .putInt(KEY_RETRY_COUNT, info.retryCount())
+                .putInt(KEY_OPP_CARRIER_ID, info.oppSimCarrierId())
+                .putInt(KEY_DETAILED_ERROR_CODE, info.detailedErrCode())
                 .apply();
     }
 
     private boolean ignoreEvent(ONSStatsInfo info) {
-        Result result = info.getProvisioningResult();
+        Result result = info.provisioningResult();
         if (info.isProvisioningResultUpdated()) {
-            info.setDetailedErrCode(result.ordinal());
             // Codes are ignored since they are intermediate state of CBRS provisioning check.
             if ((result == Result.DOWNLOAD_REQUESTED)
                     || result == Result.ERR_NO_SIM_INSERTED
                     || result == Result.ERR_DUPLICATE_DOWNLOAD_REQUEST
                     || result == Result.ERR_SWITCHING_TO_DUAL_SIM_MODE) {
                 return true;
-            }
-
-            // add subscription id for carrier if it doesn't support CBRS.
-            if (result == Result.ERR_CARRIER_DOESNT_SUPPORT_CBRS) {
-                List<SubscriptionInfo> subInfos =
-                        mSubscriptionManager.getActiveSubscriptionInfoList();
-                info.setPrimarySimSubId(
-                        (subInfos != null && !subInfos.isEmpty())
-                                ? subInfos.get(0).getSubscriptionId()
-                                : -1);
             }
         }
 
@@ -169,15 +157,15 @@ public class ONSStats {
                 (info.isProvisioningResultUpdated()
                         ? sharedPref.getInt(KEY_PROVISIONING_RESULT, -1) != result.ordinal()
                         : sharedPref.getInt(KEY_DOWNLOAD_RESULT, -1)
-                                != info.getDownloadResult().ordinal());
+                                != info.downloadResult().ordinal());
         boolean carrierIdUpdated =
                 sharedPref.getInt(KEY_PRIMARY_CARRIER_ID, -1)
-                        != getSimCarrierId(info.getPrimarySimSubId());
-        boolean retryCountUpdated = sharedPref.getInt(KEY_RETRY_COUNT, -1) != info.getRetryCount();
+                        != getSimCarrierId(info.primarySimSubId());
+        boolean retryCountUpdated = sharedPref.getInt(KEY_RETRY_COUNT, -1) != info.retryCount();
         boolean oppCarrierIdChanged =
-                sharedPref.getInt(KEY_OPP_CARRIER_ID, -1) != info.getOppSimCarrierId();
+                sharedPref.getInt(KEY_OPP_CARRIER_ID, -1) != info.oppSimCarrierId();
         boolean detailedErrorChanged =
-                sharedPref.getInt(KEY_DETAILED_ERROR_CODE, -1) != info.getDetailedErrCode();
+                sharedPref.getInt(KEY_DETAILED_ERROR_CODE, -1) != info.detailedErrCode();
         if (!(errorCodeUpdated
                 || carrierIdUpdated
                 || retryCountUpdated
@@ -186,7 +174,7 @@ public class ONSStats {
             // Result codes are meant to log on every occurrence. These should not be ignored.
             if (result == Result.SUCCESS
                     || result == Result.ERR_DOWNLOADED_ESIM_NOT_FOUND
-                    || info.getDownloadResult()
+                    || info.downloadResult()
                             == DownloadRetryResultCode.ERR_INSTALL_ESIM_PROFILE_FAILED) {
                 return false;
             }

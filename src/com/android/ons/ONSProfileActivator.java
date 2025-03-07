@@ -124,7 +124,10 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
                 case REQUEST_CODE_DOWNLOAD_RETRY: {
                     Result res = provisionCBRS();
                     Log.d(TAG, res.toString());
-                    mONSStats.logEvent(new ONSStatsInfo().setProvisioningResult(res));
+                    mONSStats.logEvent(
+                            new ONSStatsInfo.Builder()
+                                    .setProvisioningResult(mContext, res)
+                                    .build());
                 }
                 break;
             }
@@ -137,7 +140,7 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
     public Result handleCarrierConfigChange() {
         Result res = provisionCBRS();
         Log.d(TAG, res.toString());
-        mONSStats.logEvent(new ONSStatsInfo().setProvisioningResult(res));
+        mONSStats.logEvent(new ONSStatsInfo.Builder().setProvisioningResult(mContext, res).build());
 
         // Reset mDownloadRetryCount as carrier config change event is received. Either new SIM card
         // is inserted or carrier config values are updated.
@@ -152,7 +155,7 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
     public void onOppSubscriptionDeleted(int pSIMId) {
         Result res = provisionCBRS();
         Log.d(TAG, res.toString());
-        mONSStats.logEvent(new ONSStatsInfo().setProvisioningResult(res));
+        mONSStats.logEvent(new ONSStatsInfo.Builder().setProvisioningResult(mContext, res).build());
     }
 
     /**
@@ -306,10 +309,11 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
                 primarySubId);
         if (opportunisticESIM == null) {
             Log.e(TAG, "Downloaded Opportunistic eSIM not found. Unable to group with pSIM");
-            mONSStats.logEvent(new ONSStatsInfo()
-                    .setProvisioningResult(Result.ERR_DOWNLOADED_ESIM_NOT_FOUND)
+            mONSStats.logEvent(new ONSStatsInfo.Builder()
+                    .setProvisioningResult(mContext, Result.ERR_DOWNLOADED_ESIM_NOT_FOUND)
                     .setPrimarySimSubId(primarySubId)
-                    .setWifiConnected(isWiFiConnected()));
+                    .setWifiConnected(isWiFiConnected())
+                    .build());
             return;
         }
 
@@ -319,16 +323,18 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
             mONSProfileConfig.groupWithPSIMAndSetOpportunistic(
                     opportunisticESIM, pSIMSubInfo.getGroupUuid());
             Log.d(TAG, "eSIM downloaded and configured successfully");
-            mONSStats.logEvent(new ONSStatsInfo()
-                    .setProvisioningResult(Result.SUCCESS)
+            mONSStats.logEvent(new ONSStatsInfo.Builder()
+                    .setProvisioningResult(mContext, Result.SUCCESS)
                     .setRetryCount(mDownloadRetryCount)
-                    .setWifiConnected(isWiFiConnected()));
+                    .setWifiConnected(isWiFiConnected())
+                    .build());
         } else {
             Log.d(TAG, "ESIM downloaded but pSIM is not active or removed");
-            mONSStats.logEvent(new ONSStatsInfo()
-                    .setProvisioningResult(Result.ERR_PSIM_NOT_FOUND)
+            mONSStats.logEvent(new ONSStatsInfo.Builder()
+                    .setProvisioningResult(mContext, Result.ERR_PSIM_NOT_FOUND)
                     .setOppSimCarrierId(opportunisticESIM.getCarrierId())
-                    .setWifiConnected(isWiFiConnected()));
+                    .setWifiConnected(isWiFiConnected())
+                    .build());
         }
     }
 
@@ -388,12 +394,13 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
             }
         }
         if (logStats) {
-            mONSStats.logEvent(new ONSStatsInfo()
+            mONSStats.logEvent(new ONSStatsInfo.Builder()
                     .setDownloadResult(resultCode)
                     .setPrimarySimSubId(pSIMSubId)
                     .setRetryCount(mDownloadRetryCount)
                     .setDetailedErrCode(detailedErrorCode)
-                    .setWifiConnected(isWiFiConnected()));
+                    .setWifiConnected(isWiFiConnected())
+                    .build());
         }
     }
 
@@ -571,7 +578,9 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
             if (mRetryDownloadWhenNWConnected) {
                 Result res = provisionCBRS();
                 Log.d(TAG, res.toString());
-                mONSStats.logEvent(new ONSStatsInfo().setProvisioningResult(res));
+                mONSStats.logEvent(new ONSStatsInfo.Builder()
+                        .setProvisioningResult(mContext, res)
+                        .build());
             }
         }
 
