@@ -104,7 +104,7 @@ public class ONSProfileSelector {
     private int mSubId;
     @VisibleForTesting
     protected int mCurrentDataSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
-    private ArrayList<AvailableNetworkInfo> mAvailableNetworkInfos;
+    private List<AvailableNetworkInfo> mAvailableNetworkInfos;
     private IUpdateAvailableNetworksCallback mNetworkScanCallback;
 
     public static final String ACTION_SUB_SWITCH =
@@ -463,11 +463,11 @@ public class ONSProfileSelector {
         }
     }
 
-    private ArrayList<AvailableNetworkInfo> getFilteredAvailableNetworks(
-            ArrayList<AvailableNetworkInfo> availableNetworks,
+    private List<AvailableNetworkInfo> getFilteredAvailableNetworks(
+            List<AvailableNetworkInfo> availableNetworks,
             List<SubscriptionInfo> subscriptionInfoList) {
-        ArrayList<AvailableNetworkInfo> filteredAvailableNetworks =
-                new ArrayList<AvailableNetworkInfo>();
+        List<AvailableNetworkInfo> filteredAvailableNetworks =
+                new ArrayList<>();
 
         /* instead of checking each element of a list every element of the other, sort them in
            the order of sub id and compare to improve the filtering performance. */
@@ -495,8 +495,8 @@ public class ONSProfileSelector {
         return filteredAvailableNetworks;
     }
 
-    private boolean isSame(ArrayList<AvailableNetworkInfo> availableNetworks1,
-            ArrayList<AvailableNetworkInfo> availableNetworks2) {
+    private boolean isSame(List<AvailableNetworkInfo> availableNetworks1,
+            List<AvailableNetworkInfo> availableNetworks2) {
         if ((availableNetworks1 == null) || (availableNetworks2 == null)) {
             return false;
         }
@@ -517,8 +517,8 @@ public class ONSProfileSelector {
     }
 
     private void checkProfileUpdate(Object[] objects) {
-        ArrayList<AvailableNetworkInfo> availableNetworks =
-                (ArrayList<AvailableNetworkInfo>) objects[0];
+        List<AvailableNetworkInfo> availableNetworks =
+                (List<AvailableNetworkInfo>) objects[0];
         IUpdateAvailableNetworksCallback callbackStub =
                 (IUpdateAvailableNetworksCallback) objects[1];
         if (mOppSubscriptionInfos == null) {
@@ -563,8 +563,8 @@ public class ONSProfileSelector {
 
         if (mOppSubscriptionInfos.size() > 0) {
             logDebug("opportunistic subscriptions size " + mOppSubscriptionInfos.size());
-            ArrayList<AvailableNetworkInfo> filteredAvailableNetworks =
-                    getFilteredAvailableNetworks((ArrayList<AvailableNetworkInfo>)availableNetworks,
+            List<AvailableNetworkInfo> filteredAvailableNetworks =
+                    getFilteredAvailableNetworks(availableNetworks,
                             mOppSubscriptionInfos);
             if ((filteredAvailableNetworks.size() == 1)
                     && ((filteredAvailableNetworks.get(0).getMccMncs() == null)
@@ -721,17 +721,18 @@ public class ONSProfileSelector {
         }
     }
 
-    public boolean containStandaloneOppSubs(ArrayList<AvailableNetworkInfo> availableNetworks) {
+    /**
+     * Return {@code true} if the provided {@code availableNetworks} contains standalone oppt subs.
+     */
+    public boolean containStandaloneOppSubs(List<AvailableNetworkInfo> availableNetworks) {
         if (mStandaloneOppSubInfos == null) {
             logDebug("received null subscription infos");
             return false;
         }
         if (mStandaloneOppSubInfos.size() > 0) {
             logDebug("Standalone opportunistic subInfos size " + mStandaloneOppSubInfos.size());
-            ArrayList<AvailableNetworkInfo> filteredAvailableNetworks =
-                    getFilteredAvailableNetworks(
-                            (ArrayList<AvailableNetworkInfo>) availableNetworks,
-                            mStandaloneOppSubInfos);
+            List<AvailableNetworkInfo> filteredAvailableNetworks =
+                    getFilteredAvailableNetworks(availableNetworks, mStandaloneOppSubInfos);
             if (filteredAvailableNetworks.size() > 0) {
                 return true;
             }
@@ -739,7 +740,10 @@ public class ONSProfileSelector {
         return false;
     }
 
-    public void startProfileSelection(ArrayList<AvailableNetworkInfo> availableNetworks,
+    /**
+     * Start profile selection.
+     */
+    public void startProfileSelection(List<AvailableNetworkInfo> availableNetworks,
             IUpdateAvailableNetworksCallback callbackStub) {
         logDebug("startProfileSelection availableNetworks: " + availableNetworks);
         if (availableNetworks == null || availableNetworks.size() == 0) {

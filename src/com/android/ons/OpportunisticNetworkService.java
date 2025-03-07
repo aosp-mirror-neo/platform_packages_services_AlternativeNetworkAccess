@@ -59,7 +59,6 @@ import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.flags.Flags;
 import com.android.telephony.Rlog;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -387,8 +386,7 @@ public class OpportunisticNetworkService extends Service {
                 enforceTelephonyFeatureWithException(callingPackage,
                         PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "updateAvailableNetworks");
 
-                handleSystemAppAvailableNetworks(
-                        (ArrayList<AvailableNetworkInfo>) availableNetworks, callbackStub);
+                handleSystemAppAvailableNetworks(availableNetworks, callbackStub);
             } else {
                 /* check if the app has primary carrier permission */
                 TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
@@ -397,8 +395,7 @@ public class OpportunisticNetworkService extends Service {
                 enforceTelephonyFeatureWithException(callingPackage,
                         PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "updateAvailableNetworks");
 
-                handleCarrierAppAvailableNetworks(
-                        (ArrayList<AvailableNetworkInfo>) availableNetworks, callbackStub,
+                handleCarrierAppAvailableNetworks(availableNetworks, callbackStub,
                         callingPackage);
             }
         }
@@ -564,7 +561,7 @@ public class OpportunisticNetworkService extends Service {
     };
 
     private void handleCarrierAppAvailableNetworks(
-            ArrayList<AvailableNetworkInfo> availableNetworks,
+            List<AvailableNetworkInfo> availableNetworks,
             IUpdateAvailableNetworksCallback callbackStub, String callingPackage) {
         if ((availableNetworks != null) && (availableNetworks.size() > 0)) {
             /* carrier apps should report only subscription */
@@ -702,7 +699,7 @@ public class OpportunisticNetworkService extends Service {
     }
 
     private void handleSystemAppAvailableNetworks(
-            ArrayList<AvailableNetworkInfo> availableNetworks,
+            List<AvailableNetworkInfo> availableNetworks,
             IUpdateAvailableNetworksCallback callbackStub) {
         final long identity = Binder.clearCallingIdentity();
         try {

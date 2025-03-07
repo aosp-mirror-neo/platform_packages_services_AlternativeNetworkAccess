@@ -1022,12 +1022,12 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
 
         UiccPortInfo uiccPortInfo1 = new UiccPortInfo("", 0, 0, false);
         UiccPortInfo uiccPortInfo2 = new UiccPortInfo("", 1, 0, false);
-        ArrayList<UiccPortInfo> uiccPortInfoList = new ArrayList<>();
+        List<UiccPortInfo> uiccPortInfoList = new ArrayList<>();
         uiccPortInfoList.add(uiccPortInfo1);
         uiccPortInfoList.add(uiccPortInfo2);
 
         UiccCardInfo uiccCardInfo = new UiccCardInfo(true, 1, "", 0, false, true, uiccPortInfoList);
-        ArrayList<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
+        List<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
         uiccCardInfoList.add(uiccCardInfo);
 
         doReturn(uiccCardInfoList).when(mMockTelephonyManager).getUiccCardsInfo();
