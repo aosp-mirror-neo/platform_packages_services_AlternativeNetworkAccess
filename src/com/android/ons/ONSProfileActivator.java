@@ -178,14 +178,14 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
 
         //Check the number of active subscriptions.
         List<SubscriptionInfo> activeSubInfos = mSubManager.getActiveSubscriptionInfoList();
-        if (activeSubInfos == null || activeSubInfos.size() <= 0) {
+        if (activeSubInfos == null || activeSubInfos.isEmpty()) {
             return Result.ERR_NO_SIM_INSERTED;
         }
         int activeSubCount = activeSubInfos.size();
         Log.d(TAG, "Active subscription count:" + activeSubCount);
 
         if (activeSubCount == 1) {
-            SubscriptionInfo pSubInfo = activeSubInfos.get(0);
+            SubscriptionInfo pSubInfo = activeSubInfos.getFirst();
             if (pSubInfo.isOpportunistic()) {
                 //Only one SIM is active and its opportunistic SIM.
                 //Opportunistic eSIM shouldn't be used without pSIM.
@@ -290,13 +290,12 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
         ONSProfileDownloader.DownloadProfileResult res = mONSProfileDownloader.downloadProfile(
                 primaryCBRSSubInfo.getSubscriptionId());
 
-        switch (res) {
-            case DUPLICATE_REQUEST: return Result.ERR_DUPLICATE_DOWNLOAD_REQUEST;
-            case INVALID_SMDP_ADDRESS: return Result.ERR_INVALID_CARRIER_CONFIG;
-            case SUCCESS: return Result.DOWNLOAD_REQUESTED;
-        }
+        return switch (res) {
+            case DUPLICATE_REQUEST -> Result.ERR_DUPLICATE_DOWNLOAD_REQUEST;
+            case INVALID_SMDP_ADDRESS -> Result.ERR_INVALID_CARRIER_CONFIG;
+            case SUCCESS -> Result.DOWNLOAD_REQUESTED;
+        };
 
-        return Result.ERR_UNKNOWN;
     }
 
     @Override
@@ -344,8 +343,8 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
                 // current primary SIM.
                 List<Integer> oppSubIds = mONSProfileConfig
                         .getOpportunisticSubIdsofPSIMOperator(pSIMSubId);
-                if (oppSubIds != null && oppSubIds.size() > 0) {
-                    mONSProfileConfig.deleteSubscription(oppSubIds.get(0));
+                if (oppSubIds != null && !oppSubIds.isEmpty()) {
+                    mONSProfileConfig.deleteSubscription(oppSubIds.getFirst());
                 } else {
                     //else, find the inactive opportunistic eSIMs (any operator) and delete one of
                     // them and retry download again.
@@ -366,8 +365,8 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
                 List<Integer> oppSubIds = mONSProfileConfig
                         .getOpportunisticSubIdsofPSIMOperator(pSIMSubId);
 
-                if (oppSubIds != null && oppSubIds.size() > 0) {
-                    mONSProfileConfig.deleteSubscription(oppSubIds.get(0));
+                if (oppSubIds != null && !oppSubIds.isEmpty()) {
+                    mONSProfileConfig.deleteSubscription(oppSubIds.getFirst());
                 }
 
                 //Download retry will stop if there are no opportunistic eSIM profiles to delete
@@ -542,12 +541,8 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
 
     private boolean isWiFiConnected() {
         Network activeNetwork = mConnectivityManager.getActiveNetwork();
-        if ((activeNetwork != null) && mConnectivityManager.getNetworkCapabilities(activeNetwork)
-                .hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-            return true;
-        }
-
-        return false;
+        return (activeNetwork != null) && mConnectivityManager.getNetworkCapabilities(activeNetwork)
+                .hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
     }
 
     /**
@@ -605,6 +600,6 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
         ERR_INVALID_CARRIER_CONFIG,
         ERR_DOWNLOADED_ESIM_NOT_FOUND,
         ERR_PSIM_NOT_FOUND,
-        ERR_UNKNOWN;
+        ERR_UNKNOWN
     }
 }

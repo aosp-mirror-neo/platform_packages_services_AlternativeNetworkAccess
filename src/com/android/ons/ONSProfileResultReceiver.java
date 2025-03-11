@@ -52,7 +52,7 @@ public class ONSProfileResultReceiver extends BroadcastReceiver {
             serviceIntent.putExtra(EXTRA_RESULT_CODE, getResultCode());
             serviceIntent.putExtra(Intent.EXTRA_INTENT, intent);
             context.startService(serviceIntent);
-            Log.d(TAG, "Service Started:" + serviceIntent.toString());
+            Log.d(TAG, "Service Started:" + serviceIntent);
         }
     }
 }

@@ -167,12 +167,8 @@ public class OpportunisticNetworkService extends Service {
     }
 
     private static boolean enforceModifyPhoneStatePermission(Context context) {
-        if (context.checkCallingOrSelfPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
-                == PackageManager.PERMISSION_GRANTED) {
-            return true;
-        }
-
-        return false;
+        return context.checkCallingOrSelfPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
+                == PackageManager.PERMISSION_GRANTED;
     }
 
     @VisibleForTesting
@@ -234,7 +230,7 @@ public class OpportunisticNetworkService extends Service {
         @Override
         public boolean setEnable(boolean enable, String callingPackage) {
             TelephonyPermissions.enforceCallingOrSelfModifyPermissionOrCarrierPrivilege(
-                    mContext, mSubscriptionManager.getDefaultSubscriptionId(), "setEnable");
+                    mContext, SubscriptionManager.getDefaultSubscriptionId(), "setEnable");
 
             enforceTelephonyFeatureWithException(callingPackage,
                     PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "setEnable");
@@ -268,7 +264,7 @@ public class OpportunisticNetworkService extends Service {
         public boolean isEnabled(String callingPackage) {
             TelephonyPermissions
                     .enforceCallingOrSelfReadPrivilegedPhoneStatePermissionOrCarrierPrivilege(
-                            mContext, mSubscriptionManager.getDefaultSubscriptionId(), "isEnabled");
+                            mContext, SubscriptionManager.getDefaultSubscriptionId(), "isEnabled");
 
             enforceTelephonyFeatureWithException(callingPackage,
                     PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "isEnabled");
@@ -297,7 +293,8 @@ public class OpportunisticNetworkService extends Service {
                     + " callingPackage:" + callingPackage);
             if (!enforceModifyPhoneStatePermission(mContext)) {
                 TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
-                        mSubscriptionManager.getDefaultSubscriptionId(), "setPreferredDataSubscriptionId");
+                        SubscriptionManager.getDefaultSubscriptionId(),
+                        "setPreferredDataSubscriptionId");
                 if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
                     TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext, subId,
                             "setPreferredDataSubscriptionId");
@@ -390,7 +387,7 @@ public class OpportunisticNetworkService extends Service {
             } else {
                 // check if the app has primary carrier permission
                 TelephonyPermissions.enforceCallingOrSelfCarrierPrivilege(mContext,
-                        mSubscriptionManager.getDefaultSubscriptionId(), "updateAvailableNetworks");
+                        SubscriptionManager.getDefaultSubscriptionId(), "updateAvailableNetworks");
 
                 enforceTelephonyFeatureWithException(callingPackage,
                         PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "updateAvailableNetworks");
@@ -563,7 +560,7 @@ public class OpportunisticNetworkService extends Service {
     private void handleCarrierAppAvailableNetworks(
             List<AvailableNetworkInfo> availableNetworks,
             IUpdateAvailableNetworksCallback callbackStub, String callingPackage) {
-        if ((availableNetworks != null) && (availableNetworks.size() > 0)) {
+        if (availableNetworks != null && !availableNetworks.isEmpty()) {
             /* carrier apps should report only subscription */
             if (availableNetworks.size() > 1) {
                 log("Carrier app should not pass more than one subscription");
@@ -621,7 +618,7 @@ public class OpportunisticNetworkService extends Service {
                 if (subscriptionInfo != null) {
                     ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworks,
                             callbackStub, subscriptionInfo.getSubscriptionId(),
-                            availableNetworks.get(0).getSubId());
+                            availableNetworks.getFirst().getSubId());
                     mONSConfigInputHashMap.put(CARRIER_APP_CONFIG_NAME, onsConfigInput);
                 }
                 // standalone opportunistic subscription should be handled in priority.
@@ -703,7 +700,7 @@ public class OpportunisticNetworkService extends Service {
             IUpdateAvailableNetworksCallback callbackStub) {
         final long identity = Binder.clearCallingIdentity();
         try {
-            if ((availableNetworks != null) && (availableNetworks.size() > 0)) {
+            if ((availableNetworks != null) && (!availableNetworks.isEmpty())) {
                 // all subscriptions should be opportunistic subscriptions
                 if (!mProfileSelector.hasOpportunisticSub(availableNetworks)) {
                     log("No opportunistic subscriptions received");
@@ -775,28 +772,29 @@ public class OpportunisticNetworkService extends Service {
      */
     private void enableOpportunisticNetwork(boolean enable) {
         synchronized (mLock) {
-            if (mIsEnabled != enable) {
-                updateEnableState(enable);
-                if (!mIsEnabled) {
-                    mProfileSelector.stopProfileSelection(null);
-                } else {
-                    if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) != null &&
-                        mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME)
-                            .availableNetworkInfos() != null) {
-                        mProfileSelector.startProfileSelection(
+            if (mIsEnabled == enable) {
+                return;
+            }
+            updateEnableState(enable);
+            if (!mIsEnabled) {
+                mProfileSelector.stopProfileSelection(null);
+            } else {
+                if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) != null
+                        && mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME)
+                        .availableNetworkInfos() != null) {
+                    mProfileSelector.startProfileSelection(
                             mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME)
-                                .availableNetworkInfos(),
+                                    .availableNetworkInfos(),
                             mONSConfigInputHashMap.get(
-                                CARRIER_APP_CONFIG_NAME).availableNetworkCallback());
-                    } else if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME) != null &&
-                        mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME)
-                            .availableNetworkInfos() != null) {
-                        mProfileSelector.startProfileSelection(
+                                    CARRIER_APP_CONFIG_NAME).availableNetworkCallback());
+                } else if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME) != null
+                        && mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME)
+                        .availableNetworkInfos() != null) {
+                    mProfileSelector.startProfileSelection(
                             mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME)
-                                .availableNetworkInfos(),
+                                    .availableNetworkInfos(),
                             mONSConfigInputHashMap.get(
-                                SYSTEM_APP_CONFIG_NAME).availableNetworkCallback());
-                    }
+                                    SYSTEM_APP_CONFIG_NAME).availableNetworkCallback());
                 }
             }
         }

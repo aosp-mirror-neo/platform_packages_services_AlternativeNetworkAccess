@@ -43,7 +43,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * ONSNetworkScanCtlr accepts NetworkScan requests, performs NetworkScan and notifies registrants
@@ -150,22 +149,15 @@ public class ONSNetworkScanCtlr {
 
     private int getIntCarrierConfig(String key) {
         PersistableBundle b = getConfigBundle();
-        if (b != null) {
-            return b.getInt(key);
-        } else {
-            // Return static default defined in CarrierConfigManager.
-            return CarrierConfigManager.getDefaultConfig().getInt(key);
-        }
+        // Return static default defined in CarrierConfigManager.
+        return b != null ? b.getInt(key) : CarrierConfigManager.getDefaultConfig().getInt(key);
     }
 
     private boolean getBooleanCarrierConfig(String key) {
         PersistableBundle b = getConfigBundle();
-        if (b != null) {
-            return b.getBoolean(key);
-        } else {
-            // Return static default defined in CarrierConfigManager.
-            return CarrierConfigManager.getDefaultConfig().getBoolean(key);
-        }
+        // Return static default defined in CarrierConfigManager.
+        return b != null ? b.getBoolean(key) : CarrierConfigManager.getDefaultConfig().getBoolean(
+                key);
     }
 
     /**
@@ -177,7 +169,7 @@ public class ONSNetworkScanCtlr {
         if (!mIsScanActive || results == null) {
           return;
         }
-        List<CellInfo> filteredResults = new ArrayList<CellInfo>();
+        List<CellInfo> filteredResults = new ArrayList<>();
         mIs4gScanEnabled = getIs4gScanEnabled();
         synchronized (mLock) {
             for (CellInfo cellInfo : results) {
@@ -201,7 +193,7 @@ public class ONSNetworkScanCtlr {
                 }
             }
         }
-        if ((filteredResults.size() >= 1) && (mNetworkAvailableCallBack != null)) {
+        if ((!filteredResults.isEmpty()) && (mNetworkAvailableCallBack != null)) {
             // Todo: change to aggregate results on success.
             mNetworkAvailableCallBack.onNetworkAvailability(filteredResults);
         }
@@ -297,7 +289,7 @@ public class ONSNetworkScanCtlr {
     NetworkScanRequest createNetworkScanRequest(List<AvailableNetworkInfo> availableNetworks,
         int periodicity) {
         RadioAccessSpecifier[] ras;
-        ArrayList<String> mccMncs = new ArrayList<String>();
+        ArrayList<String> mccMncs = new ArrayList<>();
         Set<Integer> bandSet5G = new ArraySet<>();
         Set<Integer> bandSet4G = new ArraySet<>();
 
@@ -320,11 +312,11 @@ public class ONSNetworkScanCtlr {
                             radioAccessNetworkType ==
                                     AccessNetworkConstants.AccessNetworkType.EUTRAN) {
                         bandSet4G.addAll(Arrays.stream(radioAccessSpecifier.getBands())
-                                .boxed().collect(Collectors.toList()));
+                                .boxed().toList());
                     } else if (radioAccessNetworkType ==
                             AccessNetworkConstants.AccessNetworkType.NGRAN) {
                         bandSet5G.addAll(Arrays.stream(radioAccessSpecifier.getBands())
-                                .boxed().collect(Collectors.toList()));
+                                .boxed().toList());
                     }
                 }
             }

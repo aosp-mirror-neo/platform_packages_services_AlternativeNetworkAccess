@@ -49,7 +49,6 @@ import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -142,8 +141,8 @@ public class ONSProfileSelector {
                     log("Network scan failed with error " + error);
                     synchronized (mLock) {
                         if (mIsEnabled && mAvailableNetworkInfos != null
-                            && mAvailableNetworkInfos.size() > 0) {
-                            handleNetworkScanResult(mAvailableNetworkInfos.get(0).getSubId());
+                                && !mAvailableNetworkInfos.isEmpty()) {
+                            handleNetworkScanResult(mAvailableNetworkInfos.getFirst().getSubId());
                         } else {
                             if (mNetworkScanCallback != null) {
                                 if (mIsEnabled) {
@@ -312,7 +311,7 @@ public class ONSProfileSelector {
     }
 
     public SubscriptionInfo getOpportunisticSubInfo(int subId) {
-        if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.size() == 0)) {
+        if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.isEmpty())) {
             return null;
         }
         for (SubscriptionInfo subscriptionInfo : mOppSubscriptionInfos) {
@@ -330,7 +329,7 @@ public class ONSProfileSelector {
      * @return true if the subscription is opportunistic
      */
     public boolean isOpportunisticSub(int subId) {
-        if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.size() == 0)) {
+        if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.isEmpty())) {
             return false;
         }
         for (SubscriptionInfo subscriptionInfo : mOppSubscriptionInfos) {
@@ -342,10 +341,10 @@ public class ONSProfileSelector {
     }
 
     public boolean hasOpportunisticSub(List<AvailableNetworkInfo> availableNetworks) {
-        if ((availableNetworks == null) || (availableNetworks.size() == 0)) {
+        if ((availableNetworks == null) || (availableNetworks.isEmpty())) {
             return false;
         }
-        if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.size() == 0)) {
+        if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.isEmpty())) {
             return false;
         }
 
@@ -356,8 +355,6 @@ public class ONSProfileSelector {
         }
         return true;
     }
-
-    private HashMap<Integer, IUpdateAvailableNetworksCallback> callbackStubs = new HashMap<>();
 
     private void switchToSubscription(int subId, int availableSIMPortIndex) {
         Intent callbackIntent = new Intent(ACTION_SUB_SWITCH);
@@ -560,21 +557,22 @@ public class ONSProfileSelector {
         Collections.sort(mAvailableNetworkInfos, new SortAvailableNetworksInPriority());
         logDebug("availableNetworks: " + availableNetworks);
 
-        if (mOppSubscriptionInfos.size() > 0) {
+        if (!mOppSubscriptionInfos.isEmpty()) {
             logDebug("opportunistic subscriptions size " + mOppSubscriptionInfos.size());
             List<AvailableNetworkInfo> filteredAvailableNetworks =
                     getFilteredAvailableNetworks(availableNetworks,
                             mOppSubscriptionInfos);
             if ((filteredAvailableNetworks.size() == 1)
-                    && ((filteredAvailableNetworks.get(0).getMccMncs() == null)
-                    || (filteredAvailableNetworks.get(0).getMccMncs().size() == 0))) {
+                    && ((filteredAvailableNetworks.getFirst().getMccMncs() == null)
+                    || (filteredAvailableNetworks.getFirst().getMccMncs().isEmpty()))) {
                 // if subscription is not active, activate the sub
-                if (!mSubscriptionManager.isActiveSubId(filteredAvailableNetworks.get(0).getSubId())) {
+                if (!mSubscriptionManager.isActiveSubId(
+                        filteredAvailableNetworks.getFirst().getSubId())) {
                     mNetworkScanCallback = callbackStub;
-                    switchToSubscription(filteredAvailableNetworks.get(0).getSubId(),
+                    switchToSubscription(filteredAvailableNetworks.getFirst().getSubId(),
                             availSIMPortIndex);
                 } else {
-                    if (enableModem(filteredAvailableNetworks.get(0).getSubId(), true)) {
+                    if (enableModem(filteredAvailableNetworks.getFirst().getSubId(), true)) {
                         sendUpdateNetworksCallbackHelper(callbackStub,
                             TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
                     } else {
@@ -595,7 +593,7 @@ public class ONSProfileSelector {
                 // start scan immediately
                 mNetworkScanCtlr.startFastNetworkScan(filteredAvailableNetworks);
             }
-        } else if (mOppSubscriptionInfos.size() == 0) {
+        } else {
             if (Compatibility.isChangeEnabled(
                     OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
                 sendUpdateNetworksCallbackHelper(callbackStub,
@@ -724,19 +722,15 @@ public class ONSProfileSelector {
      * Return {@code true} if the provided {@code availableNetworks} contains standalone oppt subs.
      */
     public boolean containStandaloneOppSubs(List<AvailableNetworkInfo> availableNetworks) {
-        if (mStandaloneOppSubInfos == null) {
-            logDebug("received null subscription infos");
+        if (mStandaloneOppSubInfos == null || mStandaloneOppSubInfos.isEmpty()) {
+            logDebug("received null or empty subscription infos");
             return false;
         }
-        if (mStandaloneOppSubInfos.size() > 0) {
-            logDebug("Standalone opportunistic subInfos size " + mStandaloneOppSubInfos.size());
-            List<AvailableNetworkInfo> filteredAvailableNetworks =
-                    getFilteredAvailableNetworks(availableNetworks, mStandaloneOppSubInfos);
-            if (filteredAvailableNetworks.size() > 0) {
-                return true;
-            }
-        }
-        return false;
+
+        logDebug("Standalone opportunistic subInfos size " + mStandaloneOppSubInfos.size());
+        List<AvailableNetworkInfo> filteredAvailableNetworks =
+                getFilteredAvailableNetworks(availableNetworks, mStandaloneOppSubInfos);
+        return !filteredAvailableNetworks.isEmpty();
     }
 
     /**
@@ -745,7 +739,7 @@ public class ONSProfileSelector {
     public void startProfileSelection(List<AvailableNetworkInfo> availableNetworks,
             IUpdateAvailableNetworksCallback callbackStub) {
         logDebug("startProfileSelection availableNetworks: " + availableNetworks);
-        if (availableNetworks == null || availableNetworks.size() == 0) {
+        if (availableNetworks == null || availableNetworks.isEmpty()) {
             if (callbackStub != null) {
                 sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
@@ -831,7 +825,7 @@ public class ONSProfileSelector {
         synchronized (mLock) {
             mOppSubscriptionInfos = mSubscriptionManager
                     .getOpportunisticSubscriptions().stream()
-                    .filter(subInfo -> subInfo.isGroupDisabled() != true)
+                    .filter(subInfo -> !subInfo.isGroupDisabled())
                     .collect(Collectors.toList());
             if (mOppSubscriptionInfos != null) {
                 mStandaloneOppSubInfos = mOppSubscriptionInfos.stream()

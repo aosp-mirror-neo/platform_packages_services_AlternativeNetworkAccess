@@ -186,7 +186,7 @@ public class ONSProfileConfigurator {
         Log.d(TAG, "deleteInactiveOpportunisticSubscriptions");
 
         List<SubscriptionInfo> subList = mSubscriptionManager.getOpportunisticSubscriptions();
-        if (subList == null || subList.size() <= 0) {
+        if (subList == null || subList.isEmpty()) {
             return false;
         }
 
@@ -210,7 +210,7 @@ public class ONSProfileConfigurator {
      */
     List<Integer> getOpportunisticSubIdsofPSIMOperator(int pSIMSubId) {
         Log.d(TAG, "getOpportunisticSubIdsofPSIMOperator");
-        List<Integer> opportunisticSubIds = new ArrayList<Integer>();
+        List<Integer> opportunisticSubIds = new ArrayList<>();
         //1.Get the list of all opportunistic carrier-ids of newly inserted pSIM from carrier config
         PersistableBundle config = mCarrierConfigManager.getConfigForSubId(pSIMSubId);
         int[] oppCarrierIdArr = config.getIntArray(
@@ -223,7 +223,7 @@ public class ONSProfileConfigurator {
         List<SubscriptionInfo> oppSubList = mSubscriptionManager.getAvailableSubscriptionInfoList();
         for (SubscriptionInfo subInfo : oppSubList) {
             for (int oppCarrierId : oppCarrierIdArr) {
-                //Carrier-id of opportunistic eSIM matches with one of thecarrier-ids in carrier
+                //Carrier-id of opportunistic eSIM matches with one of the carrier-ids in carrier
                 // config of pSIM
                 if (subInfo.isEmbedded() && oppCarrierId == subInfo
                         .getCarrierId()) {
