@@ -54,7 +54,6 @@ public class ONSProfileDownloader {
     private final CarrierConfigManager mCarrierConfigManager;
     private final EuiccManager mEuiccManager;
     private final SubscriptionManager mSubManager;
-    private final ONSProfileConfigurator mONSProfileConfig;
     private IONSProfileDownloaderListener mListener;
 
     // Subscription Id of the CBRS PSIM for which opportunistic eSIM is being downloaded. Used to
@@ -71,13 +70,11 @@ public class ONSProfileDownloader {
 
     public ONSProfileDownloader(Context context, CarrierConfigManager carrierConfigManager,
                                 EuiccManager euiccManager, SubscriptionManager subManager,
-                                ONSProfileConfigurator onsProfileConfigurator,
                                 IONSProfileDownloaderListener listener) {
         mContext = context;
         mListener = listener;
         mEuiccManager = euiccManager;
         mSubManager = subManager;
-        mONSProfileConfig = onsProfileConfigurator;
         mCarrierConfigManager = carrierConfigManager;
 
         mHandler = new DownloadHandler();

@@ -79,8 +79,9 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
         mEuiccManager = mContext.getSystemService(EuiccManager.class);
         mONSProfileConfig = new ONSProfileConfigurator(mContext, mSubManager,
                 mCarrierConfigMgr, mEuiccManager, this);
-        mONSProfileDownloader = new ONSProfileDownloader(mContext, mCarrierConfigMgr,
-                mEuiccManager, mSubManager, mONSProfileConfig, this);
+        mONSProfileDownloader =
+                new ONSProfileDownloader(
+                        mContext, mCarrierConfigMgr, mEuiccManager, mSubManager, this);
 
         //Monitor internet connection.
         mConnectivityManager = context.getSystemService(ConnectivityManager.class);
