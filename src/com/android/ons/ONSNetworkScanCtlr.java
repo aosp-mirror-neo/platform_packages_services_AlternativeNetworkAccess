@@ -74,7 +74,7 @@ public class ONSNetworkScanCtlr {
             null);
     @VisibleForTesting
     static final RadioAccessSpecifier DEFAULT_4G_RAS = new RadioAccessSpecifier(
-        AccessNetworkConstants.AccessNetworkType.NGRAN,
+        AccessNetworkConstants.AccessNetworkType.EUTRAN,
         new int[] {
                 AccessNetworkConstants.EutranBand.BAND_48,
                 AccessNetworkConstants.EutranBand.BAND_71},
