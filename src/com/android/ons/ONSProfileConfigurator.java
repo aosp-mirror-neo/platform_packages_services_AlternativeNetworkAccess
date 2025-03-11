@@ -42,7 +42,7 @@ import java.util.List;
  */
 public class ONSProfileConfigurator {
 
-    private static final String TAG = ONSProfileConfigurator.class.getName();
+    private static final String TAG = ONSProfileConfigurator.class.getSimpleName();
     @VisibleForTesting protected static final String PARAM_SUB_ID = "SUB_ID";
     @VisibleForTesting protected static final String PARAM_REQUEST_TYPE = "REQUEST_TYPE";
     @VisibleForTesting protected static final int REQUEST_CODE_ACTIVATE_SUB = 1;
