@@ -59,6 +59,8 @@ import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.flags.Flags;
 
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.List;
 
@@ -398,6 +400,15 @@ public class OpportunisticNetworkService extends Service {
                 handleCarrierAppAvailableNetworks(availableNetworks, callback,
                         callingPackage);
             }
+        }
+
+        /**
+         * Dump the state of {@link IOns}.
+         */
+        @Override
+        public void dump(@NonNull FileDescriptor fd, @NonNull PrintWriter printWriter,
+                @NonNull String[] args) {
+            OpportunisticNetworkService.this.dump(fd, printWriter, args);
         }
     };
 
@@ -844,5 +855,28 @@ public class OpportunisticNetworkService extends Service {
 
     private void logDebug(String msg) {
         if (DBG) Log.d(TAG, msg);
+    }
+
+    /**
+     * Dump the state of {@link OpportunisticNetworkService}.
+     *
+     * @param fd File descriptor
+     * @param pw Print writer
+     * @param args Arguments
+     */
+    @Override
+    public void dump(@NonNull FileDescriptor fd, @NonNull PrintWriter pw,
+            @NonNull String[] args) {
+        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.DUMP,
+                "Requires android.Manifest.permission.DUMP");
+        final long token = Binder.clearCallingIdentity();
+        try {
+            pw.println(OpportunisticNetworkService.class.getSimpleName() + ":");
+            pw.println("  mIsEnabled = " + mIsEnabled);
+            mONSProfileActivator.dump(fd, pw, args);
+            mProfileSelector.dump(fd, pw, args);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
     }
 }

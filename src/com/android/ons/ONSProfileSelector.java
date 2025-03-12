@@ -19,6 +19,7 @@ package com.android.ons;
 import static android.telephony.AvailableNetworkInfo.PRIORITY_HIGH;
 import static android.telephony.AvailableNetworkInfo.PRIORITY_LOW;
 
+import android.annotation.NonNull;
 import android.app.PendingIntent;
 import android.compat.Compatibility;
 import android.content.Context;
@@ -40,13 +41,17 @@ import android.telephony.UiccCardInfo;
 import android.telephony.UiccPortInfo;
 import android.telephony.euicc.EuiccManager;
 import android.text.TextUtils;
+import android.util.IndentingPrintWriter;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -922,5 +927,33 @@ public class ONSProfileSelector {
         if (DBG) {
             Log.d(TAG, msg);
         }
+    }
+
+    /**
+     * Dump the state of {@link ONSProfileSelector}.
+     */
+    public void dump(@NonNull FileDescriptor fd, @NonNull PrintWriter printWriter,
+            @NonNull String[] args) {
+        IndentingPrintWriter pw = new IndentingPrintWriter(printWriter, "  ");
+        pw.println(TAG + ":");
+        pw.println("  subId: " + mSubId);
+        pw.println("  mCurrentDataSubId: " + mCurrentDataSubId);
+        pw.println("  mOppSubscriptionInfos: " + (
+                mOppSubscriptionInfos == null || mOppSubscriptionInfos.isEmpty() ? "[]"
+                        : Arrays.toString(mOppSubscriptionInfos.stream().map(
+                                SubscriptionInfo::getSubscriptionId).toArray())));
+        pw.println("  mStandaloneOppSubInfos: " + (
+                mStandaloneOppSubInfos == null || mStandaloneOppSubInfos.isEmpty() ? "[]"
+                        : Arrays.toString(mStandaloneOppSubInfos.stream().map(
+                                SubscriptionInfo::getSubscriptionId).toArray())));
+        pw.println("  mAvailableNetworkInfos:");
+        if (mAvailableNetworkInfos != null && !mAvailableNetworkInfos.isEmpty()) {
+            pw.increaseIndent();
+            for (AvailableNetworkInfo availableNetworkInfo : mAvailableNetworkInfos) {
+                pw.println(availableNetworkInfo);
+            }
+            pw.decreaseIndent();
+        }
+        mNetworkScanCtlr.dump(fd, printWriter, args);
     }
 }
