@@ -195,7 +195,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
             @Override
             public void run() {
                 Looper.prepare();
-                doReturn(true).when(mONSNetworkScanCtlr).startFastNetworkScan(anyObject());
+                doReturn(true).when(mONSNetworkScanCtlr).startFastNetworkScan(any());
                 doReturn(new ArrayList<>()).when(mSubscriptionManager)
                     .getOpportunisticSubscriptions();
                 mONSProfileSelector = new MyONSProfileSelector(mContext,

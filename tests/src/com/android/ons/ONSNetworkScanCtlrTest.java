@@ -67,7 +67,7 @@ public class ONSNetworkScanCtlrTest extends ONSBaseTest {
         super.setUp("ONSTest");
         mLooper = null;
         mNetworkScan = new NetworkScan(1, 1);
-        doReturn(mNetworkScan).when(mMockTelephonyManager).requestNetworkScan(anyObject(), anyObject());
+        doReturn(mNetworkScan).when(mMockTelephonyManager).requestNetworkScan(any(), any());
     }
 
     @After
