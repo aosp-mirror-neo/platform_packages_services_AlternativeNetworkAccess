@@ -23,7 +23,7 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.content.Context;
 import android.content.Intent;
@@ -214,7 +214,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
             e.printStackTrace();
         }
 
-        verifyZeroInteractions(mMockEuiccManager);
+        verifyNoMoreInteractions(mMockEuiccManager);
         workerThread.exit();
     }
 
