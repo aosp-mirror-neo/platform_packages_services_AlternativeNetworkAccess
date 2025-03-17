@@ -45,7 +45,7 @@ public class ONSProfileResultReceiver extends BroadcastReceiver {
 
         if (action.equals(TelephonyManager.ACTION_MULTI_SIM_CONFIG_CHANGED)) {
             int simCount = intent.getIntExtra(TelephonyManager.EXTRA_ACTIVE_SIM_SUPPORTED_COUNT, 0);
-            Log.d(TAG, "Mutli-SIM configed for " + simCount + "SIMs");
+            Log.d(TAG, "Multi-SIM configed for " + simCount + "SIMs");
         } else {
             Intent serviceIntent = new Intent(context, OpportunisticNetworkService.class);
             serviceIntent.setAction(intent.getAction());
