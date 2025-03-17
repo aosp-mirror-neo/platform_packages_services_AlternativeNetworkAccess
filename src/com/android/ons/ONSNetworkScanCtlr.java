@@ -46,8 +46,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * Network Scan controller class which will scan for the specific bands as requested and
- * provide results to caller when ready.
+ * ONSNetworkScanCtlr accepts NetworkScan requests, performs NetworkScan and notifies registrants
+ * the network availability with the scan results.
  */
 public class ONSNetworkScanCtlr {
     private static final String LOG_TAG = "ONSNetworkScanCtlr";

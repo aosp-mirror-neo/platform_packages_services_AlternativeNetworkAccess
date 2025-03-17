@@ -35,6 +35,9 @@ import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.Stack;
 
+/**
+ * ONSProfileDownloader is responsible for downloading ONS profiles from the remote server.
+ */
 public class ONSProfileDownloader {
 
     interface IONSProfileDownloaderListener {

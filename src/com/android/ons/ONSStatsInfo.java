@@ -19,6 +19,9 @@ package com.android.ons;
 import com.android.ons.ONSProfileActivator.Result;
 import com.android.ons.ONSProfileDownloader.DownloadRetryResultCode;
 
+/**
+ * ONSStatsInfo is the container class for ONS statistic information.
+ */
 public final class ONSStatsInfo {
     public static final int INVALID_VALUE = -1;
     private Result mProvisioningResult = null;

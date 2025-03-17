@@ -36,9 +36,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * @class ONSProfileConfigurator
- * @brief Helper class to support ONSProfileActivator to read and update profile, operator and CBRS
- * configurations.
+ * ONSProfileConfigurator is a helper class to support ONSProfileActivator reading and
+ * updating profile, operator and CBRS configurations.
  */
 public class ONSProfileConfigurator {
 
