@@ -93,50 +93,55 @@ public class ONSProfileDownloader {
 
         @Override
         public void handleMessage(Message msg) {
-            switch (msg.what) {
-                // Received Response for download request. REQUEST_CODE_DOWNLOAD_SUB was sent to LPA
-                // as part of request intent.
-                case REQUEST_CODE_DOWNLOAD_SUB: {
-                    Log.d(TAG, "REQUEST_CODE_DOWNLOAD_SUB callback received");
+            if (REQUEST_CODE_DOWNLOAD_SUB != msg.what) {
+                return;
+            }
 
-                    //Clear downloading subscription flag. Indicates no download in progress.
-                    synchronized (this) {
-                        mDownloadingPSimSubId = -1;
-                    }
+            // Received Response for download request. REQUEST_CODE_DOWNLOAD_SUB was sent to LPA
+            // as part of request intent.
+            Log.d(TAG, "REQUEST_CODE_DOWNLOAD_SUB callback received");
 
-                    int pSIMSubId = ((Intent) msg.obj).getIntExtra(PARAM_PRIMARY_SUBID, 0);
-                    int detailedErrCode = ((Intent) msg.obj).getIntExtra(
-                            EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_DETAILED_CODE, 0);
-                    int operationCode = ((Intent) msg.obj).getIntExtra(
-                            EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE, 0);
-                    int errorCode = ((Intent) msg.obj).getIntExtra(
-                            EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE, 0);
+            // Clear downloading subscription flag. Indicates no download in progress.
+            synchronized (this) {
+                mDownloadingPSimSubId = -1;
+            }
 
-                    Log.d(TAG, "Result Code : " + detailedErrCode);
-                    Log.d(TAG, "Operation Code : " + operationCode);
-                    Log.d(TAG, "Error Code : " + errorCode);
+            int pSIMSubId = ((Intent) msg.obj).getIntExtra(PARAM_PRIMARY_SUBID, 0);
+            int detailedErrCode =
+                    ((Intent) msg.obj)
+                            .getIntExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_DETAILED_CODE, 0);
+            int operationCode =
+                    ((Intent) msg.obj)
+                            .getIntExtra(
+                                    EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE, 0);
+            int errorCode =
+                    ((Intent) msg.obj)
+                            .getIntExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE, 0);
 
-                    DownloadRetryResultCode resultCode = mapDownloaderErrorCode(msg.arg1,
-                            detailedErrCode, operationCode, errorCode);
-                    Log.d(TAG, "DownloadRetryResultCode: " + resultCode);
+            Log.d(TAG, "Result Code : " + detailedErrCode);
+            Log.d(TAG, "Operation Code : " + operationCode);
+            Log.d(TAG, "Error Code : " + errorCode);
 
-                    switch (resultCode) {
-                        case DOWNLOAD_SUCCESSFUL:
-                            mListener.onDownloadComplete(pSIMSubId);
-                            break;
+            DownloadRetryResultCode resultCode =
+                    mapDownloaderErrorCode(msg.arg1, detailedErrCode, operationCode, errorCode);
+            Log.d(TAG, "DownloadRetryResultCode: " + resultCode);
 
-                        case ERR_UNRESOLVABLE:
-                            mListener.onDownloadError(pSIMSubId, resultCode, detailedErrCode);
-                            Log.e(TAG, "Unresolvable download error: "
+            switch (resultCode) {
+                case DOWNLOAD_SUCCESSFUL:
+                    mListener.onDownloadComplete(pSIMSubId);
+                    break;
+
+                case ERR_UNRESOLVABLE:
+                    mListener.onDownloadError(pSIMSubId, resultCode, detailedErrCode);
+                    Log.e(
+                            TAG,
+                            "Unresolvable download error: "
                                     + getUnresolvableErrorDescription(errorCode));
-                            break;
+                    break;
 
-                        default:
-                            mListener.onDownloadError(pSIMSubId, resultCode, detailedErrCode);
-                            break;
-                    }
-                }
-                break;
+                default:
+                    mListener.onDownloadError(pSIMSubId, resultCode, detailedErrCode);
+                    break;
             }
         }
 
