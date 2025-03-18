@@ -42,7 +42,7 @@ public class ONSProfileDownloader {
         void onDownloadError(int pSIMSubId, DownloadRetryResultCode resultCode, int detailErrCode);
     }
 
-    private static final String TAG = ONSProfileDownloader.class.getSimpleName();
+    private static final String TAG = ONSProfileDownloader.class.getName();
     public static final String ACTION_ONS_ESIM_DOWNLOAD = "com.android.ons.action.ESIM_DOWNLOAD";
 
     @VisibleForTesting protected static final String PARAM_PRIMARY_SUBID = "PrimarySubscriptionID";
