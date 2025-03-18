@@ -357,10 +357,6 @@ public class ONSProfileSelector {
         return true;
     }
 
-    private boolean isAvtiveSub(int subId) {
-        return mSubscriptionManager.isActiveSubscriptionId(subId);
-    }
-
     private HashMap<Integer, IUpdateAvailableNetworksCallback> callbackStubs = new HashMap<>();
 
     private void switchToSubscription(int subId, int availableSIMPortIndex) {
@@ -615,22 +611,6 @@ public class ONSProfileSelector {
         }
     }
 
-    private boolean isActiveSub(int subId) {
-        List<SubscriptionInfo> subscriptionInfos =
-                mSubscriptionManager.getActiveSubscriptionInfoList(false);
-        if (subscriptionInfos == null) {
-            return false;
-        }
-
-        for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
-            if (subscriptionInfo.getSubscriptionId() == subId) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     @VisibleForTesting
     protected int retrieveBestSubscription(List<CellInfo> results) {
         /* sort the results according to signal strength level */
@@ -652,25 +632,6 @@ public class ONSProfileSelector {
         }
 
         return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
-    }
-
-    private boolean isOpportunisticSubEmbedded(
-            ArrayList<AvailableNetworkInfo> availableNetworks) {
-        List<SubscriptionInfo> subscriptionInfos =
-            mSubscriptionManager.getOpportunisticSubscriptions();
-        if (subscriptionInfos == null) {
-            return false;
-        }
-        for (AvailableNetworkInfo availableNetworkInfo : availableNetworks) {
-            for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
-                if (subscriptionInfo.getSubscriptionId() == availableNetworkInfo.getSubId()
-                        && subscriptionInfo.isEmbedded()) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     private int getActiveOpportunisticSubId() {
@@ -760,25 +721,6 @@ public class ONSProfileSelector {
         }
     }
 
-    public boolean containsOpportunisticSubs(ArrayList<AvailableNetworkInfo> availableNetworks) {
-        if (mOppSubscriptionInfos == null) {
-            logDebug("received null subscription infos");
-            return false;
-        }
-
-        if (mOppSubscriptionInfos.size() > 0) {
-            logDebug("opportunistic subscriptions size " + mOppSubscriptionInfos.size());
-            ArrayList<AvailableNetworkInfo> filteredAvailableNetworks =
-                    getFilteredAvailableNetworks(
-                            (ArrayList<AvailableNetworkInfo>)availableNetworks, mOppSubscriptionInfos);
-            if (filteredAvailableNetworks.size() > 0) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     public boolean containStandaloneOppSubs(ArrayList<AvailableNetworkInfo> availableNetworks) {
         if (mStandaloneOppSubInfos == null) {
             logDebug("received null subscription infos");
@@ -792,23 +734,6 @@ public class ONSProfileSelector {
                             mStandaloneOppSubInfos);
             if (filteredAvailableNetworks.size() > 0) {
                 return true;
-            }
-        }
-        return false;
-    }
-
-    public boolean isOpportunisticSubActive() {
-        if (mOppSubscriptionInfos == null) {
-            logDebug("received null subscription infos");
-            return false;
-        }
-
-        if (mOppSubscriptionInfos.size() > 0) {
-            logDebug("opportunistic subscriptions size " + mOppSubscriptionInfos.size());
-            for (SubscriptionInfo subscriptionInfo : mOppSubscriptionInfos) {
-                if (mSubscriptionManager.isActiveSubId(subscriptionInfo.getSubscriptionId())) {
-                    return true;
-                }
             }
         }
         return false;

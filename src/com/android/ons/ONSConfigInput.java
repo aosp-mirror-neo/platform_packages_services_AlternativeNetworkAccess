@@ -29,8 +29,6 @@ import java.util.List;
  * {@link OpportunisticNetworkService}.
  */
 public class ONSConfigInput {
-    private static final String TAG = "ONSConfigInput";
-    private static final boolean DBG = true;
     private ArrayList<AvailableNetworkInfo> mAvailableNetworkInfos;
     private int mPreferredDataSub;
     private int mPrimarySub;
@@ -48,16 +46,8 @@ public class ONSConfigInput {
         return mAvailableNetworkCallback;
     }
 
-    public void setAvailableNetworkInfo(ArrayList<AvailableNetworkInfo> availableNetworkInfos) {
-        mAvailableNetworkInfos = availableNetworkInfos;
-    }
-
     public void setPreferredDataSub(int preferredDataSub) {
         mPreferredDataSub = preferredDataSub;
-    }
-
-    public int getPreferredDataSub() {
-        return mPreferredDataSub;
     }
 
     public void setPrimarySub(int primarySub) {
