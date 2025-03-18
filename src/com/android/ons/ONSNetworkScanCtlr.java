@@ -294,7 +294,7 @@ public class ONSNetworkScanCtlr {
     }
 
     @VisibleForTesting
-    NetworkScanRequest createNetworkScanRequest(ArrayList<AvailableNetworkInfo> availableNetworks,
+    NetworkScanRequest createNetworkScanRequest(List<AvailableNetworkInfo> availableNetworks,
         int periodicity) {
         RadioAccessSpecifier[] ras;
         ArrayList<String> mccMncs = new ArrayList<String>();
@@ -371,7 +371,7 @@ public class ONSNetworkScanCtlr {
      * @param availableNetworks list of subscriptions for which the scanning needs to be started.
      * @return true if successfully accepted request.
      */
-    public boolean startFastNetworkScan(ArrayList<AvailableNetworkInfo> availableNetworks) {
+    public boolean startFastNetworkScan(List<AvailableNetworkInfo> availableNetworks) {
         NetworkScanRequest networkScanRequest = createNetworkScanRequest(availableNetworks,
                 SEARCH_PERIODICITY_FAST);
         return startNetworkScan(networkScanRequest);

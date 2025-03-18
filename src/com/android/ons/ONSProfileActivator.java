@@ -39,7 +39,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.flags.Flags;
 import com.android.ons.ONSProfileDownloader.DownloadRetryResultCode;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -343,7 +342,7 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
 
                 //First find and delete any opportunistic eSIMs from the operator same as the
                 // current primary SIM.
-                ArrayList<Integer> oppSubIds = mONSProfileConfig
+                List<Integer> oppSubIds = mONSProfileConfig
                         .getOpportunisticSubIdsofPSIMOperator(pSIMSubId);
                 if (oppSubIds != null && oppSubIds.size() > 0) {
                     mONSProfileConfig.deleteSubscription(oppSubIds.get(0));
@@ -364,7 +363,7 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
                 //Since the installation of eSIM profile has failed there may be an issue with the
                 //format or profile data. We retry by first deleting existing eSIM profile from the
                 //operator same as the primary SIM and retry download opportunistic eSIM.
-                ArrayList<Integer> oppSubIds = mONSProfileConfig
+                List<Integer> oppSubIds = mONSProfileConfig
                         .getOpportunisticSubIdsofPSIMOperator(pSIMSubId);
 
                 if (oppSubIds != null && oppSubIds.size() > 0) {

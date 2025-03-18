@@ -130,7 +130,7 @@ public class ONSProfileConfigurator {
             Log.d(TAG, "opportunistic eSIM and CBRS pSIM already grouped");
         } else {
             Log.d(TAG, "Grouping opportunistic eSIM and CBRS pSIM");
-            ArrayList<Integer> subList = new ArrayList<>();
+            List<Integer> subList = new ArrayList<>();
             subList.add(opportunisticESIM.getSubscriptionId());
             try {
                 mSubscriptionManager.addSubscriptionsIntoGroup(subList, groupUuid);
@@ -208,9 +208,9 @@ public class ONSProfileConfigurator {
      * @return true - If an eSIM is found.
      *          false - If no eSIM is found.
      */
-    ArrayList<Integer> getOpportunisticSubIdsofPSIMOperator(int pSIMSubId) {
+    List<Integer> getOpportunisticSubIdsofPSIMOperator(int pSIMSubId) {
         Log.d(TAG, "getOpportunisticSubIdsofPSIMOperator");
-        ArrayList<Integer> opportunisticSubIds = new ArrayList<Integer>();
+        List<Integer> opportunisticSubIds = new ArrayList<Integer>();
         //1.Get the list of all opportunistic carrier-ids of newly inserted pSIM from carrier config
         PersistableBundle config = mCarrierConfigManager.getConfigForSubId(pSIMSubId);
         int[] oppCarrierIdArr = config.getIntArray(

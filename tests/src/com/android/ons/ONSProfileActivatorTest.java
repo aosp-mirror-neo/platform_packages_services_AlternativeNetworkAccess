@@ -104,8 +104,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 .KEY_CARRIER_SUPPORTS_OPP_DATA_AUTO_PROVISIONING_BOOL, true);
         doReturn(persistableBundle).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUBID_1);
 
-        ArrayList<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
-        ArrayList<UiccPortInfo> uiccPortInfoList =  new ArrayList<>();
+        List<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
+        List<UiccPortInfo> uiccPortInfoList =  new ArrayList<>();
         uiccPortInfoList.add(
                 new UiccPortInfo("123451234567890" /* iccId */,
                 0 /* portIdx */,
@@ -330,7 +330,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(2).when(mMockTeleManager).getSupportedModemCount();
         doReturn(2).when(mMockTeleManager).getActiveModemCount();
 
-        ArrayList<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
+        List<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
         mActiveSubInfos.add(mMockSubInfo);
         mActiveSubInfos.add(mMockSubInfo1);
         doReturn(mActiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
@@ -353,7 +353,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(2).when(mMockTeleManager).getSupportedModemCount();
         doReturn(2).when(mMockTeleManager).getActiveModemCount();
 
-        ArrayList<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
+        List<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
         mActiveSubInfos.add(mMockSubInfo);
         mActiveSubInfos.add(mMockSubInfo1);
         doReturn(mActiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
@@ -383,7 +383,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(2).when(mMockTeleManager).getSupportedModemCount();
         doReturn(2).when(mMockTeleManager).getActiveModemCount();
 
-        ArrayList<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
+        List<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
         mActiveSubInfos.add(mMockSubInfo); //Primary CBRS SIM
         mActiveSubInfos.add(mMockSubInfo1); //Opportunistic eSIM
         doReturn(mActiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();

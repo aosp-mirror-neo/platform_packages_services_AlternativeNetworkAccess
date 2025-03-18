@@ -22,23 +22,23 @@ import android.telephony.AvailableNetworkInfo;
 
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * ONSConfigInput is data class that passes configuration parameters to
  * {@link OpportunisticNetworkService}.
  */
-public record ONSConfigInput(ArrayList<AvailableNetworkInfo> availableNetworkInfos,
+public record ONSConfigInput(List<AvailableNetworkInfo> availableNetworkInfos,
                              IUpdateAvailableNetworksCallback availableNetworkCallback,
                              int preferredDataSub, int primarySub) {
     /**
      * Construct ONSConfigInput with INVALID_SUBSCRIPTION_ID as default value for both {@code
      * preferredDataSub} and {@code primarySub}
      *
-     * @param availableNetworkInfos An ArrayList of AvailableNetworkInfo
+     * @param availableNetworkInfos A List of AvailableNetworkInfo
      * @param callback              IUpdateAvailableNetworksCallback to receive callback on update
      */
-    public ONSConfigInput(ArrayList<AvailableNetworkInfo> availableNetworkInfos,
+    public ONSConfigInput(List<AvailableNetworkInfo> availableNetworkInfos,
             IUpdateAvailableNetworksCallback callback) {
         this(availableNetworkInfos, callback, INVALID_SUBSCRIPTION_ID,
                 INVALID_SUBSCRIPTION_ID);
