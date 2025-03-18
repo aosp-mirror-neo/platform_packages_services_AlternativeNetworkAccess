@@ -16,6 +16,7 @@
 
 package com.android.ons;
 
+import android.annotation.NonNull;
 import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -38,6 +39,8 @@ import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -441,5 +444,19 @@ public class ONSNetworkScanCtlr {
         if (DBG) {
             Log.d(TAG, msg);
         }
+    }
+
+    /**
+     * Dump the state of {@link ONSNetworkScanCtlr}.
+     */
+    public void dump(@NonNull FileDescriptor fd, @NonNull PrintWriter pw,
+            @NonNull String[] args) {
+        pw.println(TAG + ":");
+        pw.println("  mIs4gScanEnabled: " + mIs4gScanEnabled);
+        pw.println("  mIsScanActive: " + mIsScanActive);
+        pw.println("  mCurrentScanRequest: " + mCurrentScanRequest);
+        pw.println("  mMccMncs: " + mMccMncs);
+        pw.println("  mRsrpEntryThreshold: " + mRsrpEntryThreshold);
+        pw.println("  mSsRsrpEntryThreshold: " + mSsRsrpEntryThreshold);
     }
 }

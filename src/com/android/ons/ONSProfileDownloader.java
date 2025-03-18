@@ -16,6 +16,7 @@
 
 package com.android.ons;
 
+import android.annotation.NonNull;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -33,6 +34,8 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
 import java.util.Stack;
 
 /**
@@ -349,5 +352,14 @@ public class ONSProfileDownloader {
         msg.arg1 = resultCode;
         msg.obj = intent;
         mHandler.sendMessage(msg);
+    }
+
+    /**
+     * Dump the state of {@link ONSProfileDownloader}.
+     */
+    public void dump(@NonNull FileDescriptor fd, @NonNull PrintWriter pw,
+            @NonNull String[] args) {
+        pw.println(TAG + ":");
+        pw.println("  mDownloadingPSimSubId: " + mDownloadingPSimSubId);
     }
 }

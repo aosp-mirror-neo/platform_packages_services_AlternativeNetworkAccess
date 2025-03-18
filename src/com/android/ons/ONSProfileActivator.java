@@ -16,6 +16,7 @@
 
 package com.android.ons;
 
+import android.annotation.NonNull;
 import android.annotation.TestApi;
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -39,6 +40,8 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.flags.Flags;
 import com.android.ons.ONSProfileDownloader.DownloadRetryResultCode;
 
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
 import java.util.List;
 import java.util.Random;
 
@@ -601,5 +604,17 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
         ERR_DOWNLOADED_ESIM_NOT_FOUND,
         ERR_PSIM_NOT_FOUND,
         ERR_UNKNOWN
+    }
+
+    /**
+     * Dump the state of {@link ONSProfileActivator}.
+     */
+    public void dump(@NonNull FileDescriptor fd, @NonNull PrintWriter pw,
+            @NonNull String[] args) {
+        pw.println(TAG + ":");
+        pw.println("  mIsInternetConnAvailable: " + mIsInternetConnAvailable);
+        pw.println("  mRetryDownloadWhenNWConnected: " + mRetryDownloadWhenNWConnected);
+        pw.println("  mDownloadRetryCount: " + mDownloadRetryCount);
+        mONSProfileDownloader.dump(fd, pw, args);
     }
 }
