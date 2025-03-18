@@ -40,11 +40,11 @@ import android.telephony.UiccCardInfo;
 import android.telephony.UiccPortInfo;
 import android.telephony.euicc.EuiccManager;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
-import com.android.telephony.Rlog;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,7 +59,7 @@ import java.util.stream.Collectors;
  * geographic information input and network scan results.
  */
 public class ONSProfileSelector {
-    private static final String LOG_TAG = "ONSProfileSelector";
+    private static final String TAG = "ONSProfileSelector";
     private static final boolean DBG = true;
     private final Object mLock = new Object();
 
@@ -873,7 +873,7 @@ public class ONSProfileSelector {
                 mNetworkAvailableCallBack);
         mEuiccManager = c.getSystemService(EuiccManager.class);
         updateOpportunisticSubscriptions();
-        mThread = new HandlerThread(LOG_TAG);
+        mThread = new HandlerThread(TAG);
         mThread.start();
         mHandler = new Handler(mThread.getLooper()) {
             @Override
@@ -915,12 +915,12 @@ public class ONSProfileSelector {
     }
 
     private void log(String msg) {
-        Rlog.d(LOG_TAG, msg);
+        Log.d(TAG, msg);
     }
 
     private void logDebug(String msg) {
         if (DBG) {
-            Rlog.d(LOG_TAG, msg);
+            Log.d(TAG, msg);
         }
     }
 }

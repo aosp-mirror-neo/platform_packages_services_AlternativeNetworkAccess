@@ -34,9 +34,9 @@ import android.telephony.RadioAccessSpecifier;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyScanManager;
 import android.util.ArraySet;
+import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.telephony.Rlog;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,7 +50,7 @@ import java.util.stream.Collectors;
  * the network availability with the scan results.
  */
 public class ONSNetworkScanCtlr {
-    private static final String LOG_TAG = "ONSNetworkScanCtlr";
+    private static final String TAG = "ONSNetworkScanCtlr";
     private static final boolean DBG = true;
     private static final int SEARCH_PERIODICITY_FAST = (int) TimeUnit.MINUTES.toSeconds(1);
     private static final int MAX_SEARCH_TIME = (int) TimeUnit.MINUTES.toSeconds(1);
@@ -233,7 +233,7 @@ public class ONSNetworkScanCtlr {
     public void init(Context context, TelephonyManager telephonyManager,
             NetworkAvailableCallBack networkAvailableCallBack) {
         log("init called");
-        mThread = new HandlerThread(LOG_TAG);
+        mThread = new HandlerThread(TAG);
         mThread.start();
         mHandler =  new Handler(mThread.getLooper()) {
             @Override
@@ -442,12 +442,12 @@ public class ONSNetworkScanCtlr {
     }
 
     private static void log(String msg) {
-        Rlog.d(LOG_TAG, msg);
+        Log.d(TAG, msg);
     }
 
     private static void logDebug(String msg) {
         if (DBG) {
-            Rlog.d(LOG_TAG, msg);
+            Log.d(TAG, msg);
         }
     }
 }
