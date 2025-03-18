@@ -35,7 +35,7 @@ public class ONSAutoBoot extends BroadcastReceiver {
         Log.d(TAG, "Received " + intent.getAction());
         if (Intent.ACTION_LOCKED_BOOT_COMPLETED.equals(intent.getAction())) {
             ComponentName comp = new ComponentName(context.getPackageName(),
-                    OpportunisticNetworkService.class.getSimpleName());
+                    OpportunisticNetworkService.class.getName());
             ComponentName service = context.startService(new Intent().setComponent(comp));
             if (service == null) {
                 Log.d(TAG, "Could not start service " + comp.toString());

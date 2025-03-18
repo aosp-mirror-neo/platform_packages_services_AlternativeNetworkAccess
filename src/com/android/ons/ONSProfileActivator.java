@@ -50,7 +50,7 @@ import java.util.Random;
 public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfigListener,
         ONSProfileDownloader.IONSProfileDownloaderListener {
 
-    private static final String TAG = ONSProfileActivator.class.getSimpleName();
+    private static final String TAG = ONSProfileActivator.class.getName();
     private final Context mContext;
     private final SubscriptionManager mSubManager;
     private final TelephonyManager mTelephonyManager;

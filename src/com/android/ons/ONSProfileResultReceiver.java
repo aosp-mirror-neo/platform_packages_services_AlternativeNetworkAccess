@@ -33,7 +33,7 @@ import android.util.Log;
  */
 public class ONSProfileResultReceiver extends BroadcastReceiver {
 
-    private static final String TAG = ONSProfileResultReceiver.class.getSimpleName();
+    private static final String TAG = ONSProfileResultReceiver.class.getName();
     public static final String EXTRA_RESULT_CODE = "ResultCode";
 
     @Override
