@@ -49,6 +49,7 @@ import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyFrameworkInitializer;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.IOns;
@@ -57,7 +58,6 @@ import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.flags.Flags;
-import com.android.telephony.Rlog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -842,10 +842,10 @@ public class OpportunisticNetworkService extends Service {
     }
 
     private void log(String msg) {
-        Rlog.d(TAG, msg);
+        Log.d(TAG, msg);
     }
 
     private void logDebug(String msg) {
-        if (DBG) Rlog.d(TAG, msg);
+        if (DBG) Log.d(TAG, msg);
     }
 }
