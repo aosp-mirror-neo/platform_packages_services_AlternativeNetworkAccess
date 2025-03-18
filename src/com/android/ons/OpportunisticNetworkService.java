@@ -192,7 +192,7 @@ public class OpportunisticNetworkService extends Service {
 
         logDebug("handleSimStateChange: subscriptionInfos - " + subscriptionInfos);
         for (SubscriptionInfo subscriptionInfo : subscriptionInfos) {
-            if (subscriptionInfo.getSubscriptionId() == carrierAppConfigInput.getPrimarySub()) {
+            if (subscriptionInfo.getSubscriptionId() == carrierAppConfigInput.primarySub()) {
                 return;
             }
         }
@@ -204,9 +204,9 @@ public class OpportunisticNetworkService extends Service {
         }
         if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME) != null) {
             mProfileSelector.startProfileSelection(
-                    mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME).getAvailableNetworkInfos(),
+                    mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME).availableNetworkInfos(),
                     mONSConfigInputHashMap.get(
-                            SYSTEM_APP_CONFIG_NAME).getAvailableNetworkCallback());
+                            SYSTEM_APP_CONFIG_NAME).availableNetworkCallback());
         }
     }
 
@@ -620,17 +620,17 @@ public class OpportunisticNetworkService extends Service {
 
             final long identity = Binder.clearCallingIdentity();
             try {
-                ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworks, callbackStub);
                 SubscriptionInfo subscriptionInfo = mSubscriptionManager.getDefaultVoiceSubscriptionInfo();
                 if (subscriptionInfo != null) {
-                    onsConfigInput.setPrimarySub(subscriptionInfo.getSubscriptionId());
-                    onsConfigInput.setPreferredDataSub(availableNetworks.get(0).getSubId());
+                    ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworks,
+                            callbackStub, subscriptionInfo.getSubscriptionId(),
+                            availableNetworks.get(0).getSubId());
                     mONSConfigInputHashMap.put(CARRIER_APP_CONFIG_NAME, onsConfigInput);
                 }
                 /* standalone opportunistic subscription should be handled in priority. */
                 if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME) != null) {
                     if (mProfileSelector.containStandaloneOppSubs(mONSConfigInputHashMap.get(
-                            SYSTEM_APP_CONFIG_NAME).getAvailableNetworkInfos())) {
+                            SYSTEM_APP_CONFIG_NAME).availableNetworkInfos())) {
                         log("standalone opportunistic subscription is using.");
                         return;
                     }
@@ -667,9 +667,9 @@ public class OpportunisticNetworkService extends Service {
                             TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
                     mProfileSelector.startProfileSelection(
                             mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME)
-                                    .getAvailableNetworkInfos(),
+                                    .availableNetworkInfos(),
                             mONSConfigInputHashMap.get(
-                                    SYSTEM_APP_CONFIG_NAME).getAvailableNetworkCallback());
+                                    SYSTEM_APP_CONFIG_NAME).availableNetworkCallback());
                 } else {
                     mProfileSelector.stopProfileSelection(callbackStub);
                 }
@@ -756,9 +756,9 @@ public class OpportunisticNetworkService extends Service {
                     log("Try to start carrier app request");
                     mProfileSelector.startProfileSelection(
                             mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME)
-                                    .getAvailableNetworkInfos(),
+                                    .availableNetworkInfos(),
                             mONSConfigInputHashMap.get(
-                                    CARRIER_APP_CONFIG_NAME).getAvailableNetworkCallback());
+                                    CARRIER_APP_CONFIG_NAME).availableNetworkCallback());
                 }
             }
         } finally {
@@ -785,20 +785,20 @@ public class OpportunisticNetworkService extends Service {
                 } else {
                     if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) != null &&
                         mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME)
-                            .getAvailableNetworkInfos() != null) {
+                            .availableNetworkInfos() != null) {
                         mProfileSelector.startProfileSelection(
                             mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME)
-                                .getAvailableNetworkInfos(),
+                                .availableNetworkInfos(),
                             mONSConfigInputHashMap.get(
-                                CARRIER_APP_CONFIG_NAME).getAvailableNetworkCallback());
+                                CARRIER_APP_CONFIG_NAME).availableNetworkCallback());
                     } else if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME) != null &&
                         mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME)
-                            .getAvailableNetworkInfos() != null) {
+                            .availableNetworkInfos() != null) {
                         mProfileSelector.startProfileSelection(
                             mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME)
-                                .getAvailableNetworkInfos(),
+                                .availableNetworkInfos(),
                             mONSConfigInputHashMap.get(
-                                SYSTEM_APP_CONFIG_NAME).getAvailableNetworkCallback());
+                                SYSTEM_APP_CONFIG_NAME).availableNetworkCallback());
                     }
                 }
             }
