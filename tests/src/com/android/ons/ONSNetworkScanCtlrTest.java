@@ -85,7 +85,7 @@ public class ONSNetworkScanCtlrTest extends ONSBaseTest {
         mccMncs.add("310210");
         AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
                 new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
+        List<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
         availableNetworkInfos.add(availableNetworkInfo);
         List<CellInfo> expectedResults = new ArrayList<CellInfo>();
         CellIdentityLte cellIdentityLte = new CellIdentityLte(310, 210, 1, 1, 1);
@@ -113,7 +113,7 @@ public class ONSNetworkScanCtlrTest extends ONSBaseTest {
         mccMncs.add("310210");
         AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
                 new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
+        List<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
         availableNetworkInfos.add(availableNetworkInfo);
         mError = NetworkScan.SUCCESS;
 
@@ -138,7 +138,7 @@ public class ONSNetworkScanCtlrTest extends ONSBaseTest {
         mccMncs.add("310211");
         AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
             new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
+        List<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
         availableNetworkInfos.add(availableNetworkInfo);
 
         initONSNetworkScanCtrl();
@@ -161,7 +161,7 @@ public class ONSNetworkScanCtlrTest extends ONSBaseTest {
         mccMncs.add("310210");
         AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
                 new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+        List<AvailableNetworkInfo> availableNetworkInfos =
                 new ArrayList<AvailableNetworkInfo>();
         availableNetworkInfos.add(availableNetworkInfo);
         mCallbackInvoked = false;
@@ -295,7 +295,7 @@ public class ONSNetworkScanCtlrTest extends ONSBaseTest {
                         .setMccMncs(new ArrayList<>(Arrays.asList("310210")))
                         .setRadioAccessSpecifiers(ras)
                         .build();
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+        List<AvailableNetworkInfo> availableNetworkInfos =
             new ArrayList<AvailableNetworkInfo>();
         availableNetworkInfos.add(availableNetworkInfo);
 

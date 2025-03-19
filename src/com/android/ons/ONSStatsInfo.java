@@ -19,6 +19,9 @@ package com.android.ons;
 import com.android.ons.ONSProfileActivator.Result;
 import com.android.ons.ONSProfileDownloader.DownloadRetryResultCode;
 
+/**
+ * ONSStatsInfo is the container class for ONS statistic information.
+ */
 public final class ONSStatsInfo {
     public static final int INVALID_VALUE = -1;
     private Result mProvisioningResult = null;
@@ -28,7 +31,6 @@ public final class ONSStatsInfo {
     private int mRetryCount = INVALID_VALUE;
     private int mDetailedErrCode = INVALID_VALUE;
     private boolean mIsWifiConnected = false;
-    private boolean mIsProvisioningResultUpdated = false;
 
     public Result getProvisioningResult() {
         return mProvisioningResult;
@@ -59,20 +61,18 @@ public final class ONSStatsInfo {
     }
 
     public boolean isProvisioningResultUpdated() {
-        return mIsProvisioningResultUpdated;
+        return mProvisioningResult != null;
     }
 
     public ONSStatsInfo setProvisioningResult(Result result) {
         mProvisioningResult = result;
         mDownloadResult = null;
-        mIsProvisioningResultUpdated = true;
         return this;
     }
 
     public ONSStatsInfo setDownloadResult(DownloadRetryResultCode retryResultCode) {
         mProvisioningResult = null;
         mDownloadResult = retryResultCode;
-        mIsProvisioningResultUpdated = false;
         return this;
     }
 
@@ -119,7 +119,7 @@ public final class ONSStatsInfo {
                 + ", mIsWifiConnected="
                 + mIsWifiConnected
                 + ", mIsProvisioningResultUpdated="
-                + mIsProvisioningResultUpdated
+                + (mProvisioningResult != null)
                 + '}';
     }
 }

@@ -214,7 +214,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         waitUntilReady();
         mReady = false;
 
-        // Testing startProfileSelection without any oppotunistic data.
+        // Testing startProfileSelection without any opportunistic data.
         // should not get any callback invocation.
         waitUntilReady(100);
         assertEquals(
@@ -292,7 +292,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         mReady = false;
         mDataSubId = -1;
 
-        // Testing startProfileSelection with oppotunistic sub.
+        // Testing startProfileSelection with opportunistic sub.
         // On success onProfileSelectionDone must get invoked.
         assertFalse(mReady);
         waitForMs(500);
@@ -485,7 +485,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
     }
 
     @Test
-    public void testselectProfileForDataWithNoOpportunsticSub() {
+    public void testselectProfileForDataWithNoOpportunisticSub() {
         mReady = false;
         doReturn(new ArrayList<>()).when(mSubscriptionManager).getOpportunisticSubscriptions();
         new Thread(new Runnable() {
@@ -506,7 +506,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         // Wait till initialization is complete.
         waitUntilReady();
 
-        // Testing selectProfileForData with no oppotunistic sub and the function should
+        // Testing selectProfileForData with no opportunistic sub and the function should
         // return false.
         mONSProfileSelector.selectProfileForData(1, false, null);
     }
@@ -685,7 +685,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         mReady = false;
         mDataSubId = -1;
 
-        // Testing startProfileSelection with oppotunistic sub.
+        // Testing startProfileSelection with opportunistic sub.
         // On success onProfileSelectionDone must get invoked.
         assertFalse(mReady);
         waitForMs(500);
@@ -721,7 +721,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
         mReady = false;
         mDataSubId = -1;
 
-        // Testing startProfileSelection with oppotunistic sub.
+        // Testing startProfileSelection with opportunistic sub.
         // On success onProfileSelectionDone must get invoked.
         assertFalse(mReady);
         waitForMs(500);
@@ -1022,12 +1022,12 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
 
         UiccPortInfo uiccPortInfo1 = new UiccPortInfo("", 0, 0, false);
         UiccPortInfo uiccPortInfo2 = new UiccPortInfo("", 1, 0, false);
-        ArrayList<UiccPortInfo> uiccPortInfoList = new ArrayList<>();
+        List<UiccPortInfo> uiccPortInfoList = new ArrayList<>();
         uiccPortInfoList.add(uiccPortInfo1);
         uiccPortInfoList.add(uiccPortInfo2);
 
         UiccCardInfo uiccCardInfo = new UiccCardInfo(true, 1, "", 0, false, true, uiccPortInfoList);
-        ArrayList<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
+        List<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
         uiccCardInfoList.add(uiccCardInfo);
 
         doReturn(uiccCardInfoList).when(mMockTelephonyManager).getUiccCardsInfo();
