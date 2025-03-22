@@ -21,76 +21,95 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import android.content.Context;
+
+import androidx.test.InstrumentationRegistry;
+
 import com.android.ons.ONSProfileActivator.Result;
 import com.android.ons.ONSProfileDownloader.DownloadRetryResultCode;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class ONSStatsInfoTest {
+    private Context mContext;
+
+    @Before
+    public void setUp() {
+        mContext = InstrumentationRegistry.getTargetContext();
+    }
 
     @Test
     public void testProvisioningResult() {
         ONSStatsInfo info;
-        info = new ONSStatsInfo().setProvisioningResult(Result.ERR_AUTO_PROVISIONING_DISABLED);
-        assertEquals(Result.ERR_AUTO_PROVISIONING_DISABLED, info.getProvisioningResult());
-        assertNull(info.getDownloadResult());
+        info = new ONSStatsInfo.Builder()
+                .setProvisioningResult(mContext, Result.ERR_AUTO_PROVISIONING_DISABLED)
+                .build();
+        assertEquals(Result.ERR_AUTO_PROVISIONING_DISABLED, info.provisioningResult());
+        assertNull(info.downloadResult());
         assertTrue(info.isProvisioningResultUpdated());
     }
 
     @Test
     public void testDownloadResult() {
         ONSStatsInfo info;
-        info = new ONSStatsInfo().setDownloadResult(DownloadRetryResultCode.ERR_MEMORY_FULL);
-        assertEquals(DownloadRetryResultCode.ERR_MEMORY_FULL, info.getDownloadResult());
-        assertNull(info.getProvisioningResult());
+        info = new ONSStatsInfo.Builder()
+                .setDownloadResult(DownloadRetryResultCode.ERR_MEMORY_FULL)
+                .build();
+        assertEquals(DownloadRetryResultCode.ERR_MEMORY_FULL, info.downloadResult());
+        assertNull(info.provisioningResult());
         assertFalse(info.isProvisioningResultUpdated());
     }
 
     @Test
     public void testPrimarySimSubId() {
         ONSStatsInfo info;
-        info = new ONSStatsInfo().setPrimarySimSubId(1);
-        assertEquals(1, info.getPrimarySimSubId());
+        info = new ONSStatsInfo.Builder().setPrimarySimSubId(1).build();
+        assertEquals(1, info.primarySimSubId());
     }
 
     @Test
     public void testOppSimCarrierId() {
         ONSStatsInfo info;
-        info = new ONSStatsInfo().setOppSimCarrierId(1221);
-        assertEquals(1221, info.getOppSimCarrierId());
+        info = new ONSStatsInfo.Builder().setOppSimCarrierId(1221).build();
+        assertEquals(1221, info.oppSimCarrierId());
     }
 
     @Test
     public void testRetryCount() {
         ONSStatsInfo info;
-        info = new ONSStatsInfo().setRetryCount(3);
-        assertEquals(3, info.getRetryCount());
+        info = new ONSStatsInfo.Builder().setRetryCount(3).build();
+        assertEquals(3, info.retryCount());
     }
 
     @Test
     public void testDetailedErrCode() {
         ONSStatsInfo info;
-        info = new ONSStatsInfo().setDetailedErrCode(1000);
-        assertEquals(1000, info.getDetailedErrCode());
+        info = new ONSStatsInfo.Builder().setDetailedErrCode(1000).build();
+        assertEquals(1000, info.detailedErrCode());
     }
 
     @Test
     public void testIsWifiConnected() {
         ONSStatsInfo info;
-        info = new ONSStatsInfo().setWifiConnected(true);
+        info = new ONSStatsInfo.Builder().setWifiConnected(true).build();
         assertTrue(info.isWifiConnected());
     }
 
     @Test
     public void testIsProvisioningResultUpdated() {
         ONSStatsInfo info;
-        info = new ONSStatsInfo().setProvisioningResult(Result.ERR_ESIM_NOT_SUPPORTED);
+        info = new ONSStatsInfo.Builder()
+                .setProvisioningResult(mContext, Result.ERR_ESIM_NOT_SUPPORTED)
+                .build();
         assertTrue(info.isProvisioningResultUpdated());
 
-        info.setDownloadResult(DownloadRetryResultCode.ERR_MEMORY_FULL);
+        info = new ONSStatsInfo.Builder(info)
+                .setDownloadResult(DownloadRetryResultCode.ERR_MEMORY_FULL)
+                .build();
         assertFalse(info.isProvisioningResultUpdated());
     }
 }

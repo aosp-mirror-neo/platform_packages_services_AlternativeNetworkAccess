@@ -205,25 +205,38 @@ public class ONSStatsTest {
     @Test
     public void testLogEvent() {
         ONSStatsInfo info =
-                new ONSStatsInfo()
+                new ONSStatsInfo.Builder()
                         .setPrimarySimSubId(1)
-                        .setProvisioningResult(Result.ERR_CANNOT_SWITCH_TO_DUAL_SIM_MODE);
+                        .setProvisioningResult(mContext, Result.ERR_CANNOT_SWITCH_TO_DUAL_SIM_MODE)
+                        .build();
         assertTrue(mONSStats.logEvent(info));
     }
 
     @Test
     public void testIgnoredLogEvents() {
         // ignored error codes should not log.
-        ONSStatsInfo info = new ONSStatsInfo().setProvisioningResult(Result.DOWNLOAD_REQUESTED);
+        ONSStatsInfo info =
+                new ONSStatsInfo.Builder()
+                        .setProvisioningResult(mContext, Result.DOWNLOAD_REQUESTED)
+                        .build();
         assertFalse(mONSStats.logEvent(info));
 
-        info = new ONSStatsInfo().setProvisioningResult(Result.ERR_NO_SIM_INSERTED);
+        info =
+                new ONSStatsInfo.Builder()
+                        .setProvisioningResult(mContext, Result.ERR_NO_SIM_INSERTED)
+                        .build();
         assertFalse(mONSStats.logEvent(info));
 
-        info = new ONSStatsInfo().setProvisioningResult(Result.ERR_DUPLICATE_DOWNLOAD_REQUEST);
+        info =
+                new ONSStatsInfo.Builder()
+                        .setProvisioningResult(mContext, Result.ERR_DUPLICATE_DOWNLOAD_REQUEST)
+                        .build();
         assertFalse(mONSStats.logEvent(info));
 
-        info = new ONSStatsInfo().setProvisioningResult(Result.ERR_SWITCHING_TO_DUAL_SIM_MODE);
+        info =
+                new ONSStatsInfo.Builder()
+                        .setProvisioningResult(mContext, Result.ERR_SWITCHING_TO_DUAL_SIM_MODE)
+                        .build();
         assertFalse(mONSStats.logEvent(info));
     }
 
@@ -231,9 +244,10 @@ public class ONSStatsTest {
     public void testRepeatedLogEvents() {
         ONSStatsInfo info;
         info =
-                new ONSStatsInfo()
+                new ONSStatsInfo.Builder()
                         .setDownloadResult(DownloadRetryResultCode.ERR_MEMORY_FULL)
-                        .setDetailedErrCode(10011);
+                        .setDetailedErrCode(10011)
+                        .build();
         assertTrue(mONSStats.logEvent(info));
 
         // same result should not log consecutively
@@ -244,7 +258,10 @@ public class ONSStatsTest {
     @Test
     public void testRepeatedAllowedLogEvents() {
         ONSStatsInfo info;
-        info = new ONSStatsInfo().setProvisioningResult(Result.ERR_DOWNLOADED_ESIM_NOT_FOUND);
+        info =
+                new ONSStatsInfo.Builder()
+                        .setProvisioningResult(mContext, Result.ERR_DOWNLOADED_ESIM_NOT_FOUND)
+                        .build();
         assertTrue(mONSStats.logEvent(info));
 
         // ERR_DOWNLOADED_ESIM_NOT_FOUND is allowed to log consecutively
@@ -252,8 +269,9 @@ public class ONSStatsTest {
         assertTrue(mONSStats.logEvent(info));
 
         info =
-                new ONSStatsInfo()
-                        .setDownloadResult(DownloadRetryResultCode.ERR_INSTALL_ESIM_PROFILE_FAILED);
+                new ONSStatsInfo.Builder()
+                        .setDownloadResult(DownloadRetryResultCode.ERR_INSTALL_ESIM_PROFILE_FAILED)
+                        .build();
         assertTrue(mONSStats.logEvent(info));
 
         // ERR_INSTALL_ESIM_PROFILE_FAILED is allowed to log consecutively
@@ -264,13 +282,17 @@ public class ONSStatsTest {
     @Test
     public void testRepeatedSuccessLogEvents() {
         ONSStatsInfo info;
-        info = new ONSStatsInfo().setProvisioningResult(Result.SUCCESS).setRetryCount(2);
+        info =
+                new ONSStatsInfo.Builder()
+                .setProvisioningResult(mContext, Result.SUCCESS)
+                .setRetryCount(2)
+                .build();
 
         // should log every time if eSIM is newly downloaded.
         assertTrue(mONSStats.logEvent(info));
         assertTrue(mONSStats.logEvent(info));
 
-        info = new ONSStatsInfo().setProvisioningResult(Result.SUCCESS);
+        info = new ONSStatsInfo.Builder().setProvisioningResult(mContext, Result.SUCCESS).build();
         // should log even if eSIM is already downloaded and event triggered just to group it.
         assertTrue(mONSStats.logEvent(info));
         assertTrue(mONSStats.logEvent(info));
@@ -279,13 +301,14 @@ public class ONSStatsTest {
     @Test
     public void testRepeatedErrorWithInfoChangeLogEvents() {
         ONSStatsInfo info =
-                new ONSStatsInfo()
+                new ONSStatsInfo.Builder()
                         .setPrimarySimSubId(1)
-                        .setProvisioningResult(Result.ERR_AUTO_PROVISIONING_DISABLED);
+                        .setProvisioningResult(mContext, Result.ERR_AUTO_PROVISIONING_DISABLED)
+                        .build();
         assertTrue(mONSStats.logEvent(info));
 
         // Same error should log if the info is changed.
-        info.setPrimarySimSubId(2);
+        info = new ONSStatsInfo.Builder(info).setPrimarySimSubId(2).build();
         assertTrue(mONSStats.logEvent(info));
 
         // no change in info
@@ -295,7 +318,9 @@ public class ONSStatsTest {
     @Test
     public void testDetailedErrorCodeLogEvents() {
         ONSStatsInfo info;
-        info = new ONSStatsInfo().setProvisioningResult(Result.ERR_WAITING_FOR_INTERNET_CONNECTION);
+        info = new ONSStatsInfo.Builder()
+                .setProvisioningResult(mContext, Result.ERR_WAITING_FOR_INTERNET_CONNECTION)
+                .build();
         assertTrue(mONSStats.logEvent(info));
 
         // For provisioning errors; Result enum ordinal is set as detailed error code.
@@ -303,15 +328,16 @@ public class ONSStatsTest {
                 Result.ERR_WAITING_FOR_INTERNET_CONNECTION.ordinal(),
                 mSharedPreferences.getInt(KEY_DETAILED_ERROR_CODE, -1));
         assertEquals(
-                Result.ERR_WAITING_FOR_INTERNET_CONNECTION.ordinal(), info.getDetailedErrCode());
+                Result.ERR_WAITING_FOR_INTERNET_CONNECTION.ordinal(), info.detailedErrCode());
 
         // For Download errors; detailed error code is updated from EuiccManager.
         info =
-                new ONSStatsInfo()
+                new ONSStatsInfo.Builder(info)
                         .setDownloadResult(DownloadRetryResultCode.ERR_MEMORY_FULL)
-                        .setDetailedErrCode(10223);
+                        .setDetailedErrCode(10223)
+                        .build();
         assertTrue(mONSStats.logEvent(info));
         assertEquals(10223, mSharedPreferences.getInt(KEY_DETAILED_ERROR_CODE, -1));
-        assertEquals(10223, info.getDetailedErrCode());
+        assertEquals(10223, info.detailedErrCode());
     }
 }
