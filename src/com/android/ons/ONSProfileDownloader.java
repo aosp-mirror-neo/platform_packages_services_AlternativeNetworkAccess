@@ -16,6 +16,7 @@
 
 package com.android.ons;
 
+import android.annotation.NonNull;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -33,8 +34,13 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
 import java.util.Stack;
 
+/**
+ * ONSProfileDownloader is responsible for downloading ONS profiles from the remote server.
+ */
 public class ONSProfileDownloader {
 
     interface IONSProfileDownloaderListener {
@@ -54,7 +60,6 @@ public class ONSProfileDownloader {
     private final CarrierConfigManager mCarrierConfigManager;
     private final EuiccManager mEuiccManager;
     private final SubscriptionManager mSubManager;
-    private final ONSProfileConfigurator mONSProfileConfig;
     private IONSProfileDownloaderListener mListener;
 
     // Subscription Id of the CBRS PSIM for which opportunistic eSIM is being downloaded. Used to
@@ -71,13 +76,11 @@ public class ONSProfileDownloader {
 
     public ONSProfileDownloader(Context context, CarrierConfigManager carrierConfigManager,
                                 EuiccManager euiccManager, SubscriptionManager subManager,
-                                ONSProfileConfigurator onsProfileConfigurator,
                                 IONSProfileDownloaderListener listener) {
         mContext = context;
         mListener = listener;
         mEuiccManager = euiccManager;
         mSubManager = subManager;
-        mONSProfileConfig = onsProfileConfigurator;
         mCarrierConfigManager = carrierConfigManager;
 
         mHandler = new DownloadHandler();
@@ -90,50 +93,55 @@ public class ONSProfileDownloader {
 
         @Override
         public void handleMessage(Message msg) {
-            switch (msg.what) {
-                // Received Response for download request. REQUEST_CODE_DOWNLOAD_SUB was sent to LPA
-                // as part of request intent.
-                case REQUEST_CODE_DOWNLOAD_SUB: {
-                    Log.d(TAG, "REQUEST_CODE_DOWNLOAD_SUB callback received");
+            if (REQUEST_CODE_DOWNLOAD_SUB != msg.what) {
+                return;
+            }
 
-                    //Clear downloading subscription flag. Indicates no download in progress.
-                    synchronized (this) {
-                        mDownloadingPSimSubId = -1;
-                    }
+            // Received Response for download request. REQUEST_CODE_DOWNLOAD_SUB was sent to LPA
+            // as part of request intent.
+            Log.d(TAG, "REQUEST_CODE_DOWNLOAD_SUB callback received");
 
-                    int pSIMSubId = ((Intent) msg.obj).getIntExtra(PARAM_PRIMARY_SUBID, 0);
-                    int detailedErrCode = ((Intent) msg.obj).getIntExtra(
-                            EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_DETAILED_CODE, 0);
-                    int operationCode = ((Intent) msg.obj).getIntExtra(
-                            EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE, 0);
-                    int errorCode = ((Intent) msg.obj).getIntExtra(
-                            EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE, 0);
+            // Clear downloading subscription flag. Indicates no download in progress.
+            synchronized (this) {
+                mDownloadingPSimSubId = -1;
+            }
 
-                    Log.d(TAG, "Result Code : " + detailedErrCode);
-                    Log.d(TAG, "Operation Code : " + operationCode);
-                    Log.d(TAG, "Error Code : " + errorCode);
+            int pSIMSubId = ((Intent) msg.obj).getIntExtra(PARAM_PRIMARY_SUBID, 0);
+            int detailedErrCode =
+                    ((Intent) msg.obj)
+                            .getIntExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_DETAILED_CODE, 0);
+            int operationCode =
+                    ((Intent) msg.obj)
+                            .getIntExtra(
+                                    EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_OPERATION_CODE, 0);
+            int errorCode =
+                    ((Intent) msg.obj)
+                            .getIntExtra(EuiccManager.EXTRA_EMBEDDED_SUBSCRIPTION_ERROR_CODE, 0);
 
-                    DownloadRetryResultCode resultCode = mapDownloaderErrorCode(msg.arg1,
-                            detailedErrCode, operationCode, errorCode);
-                    Log.d(TAG, "DownloadRetryResultCode: " + resultCode);
+            Log.d(TAG, "Result Code : " + detailedErrCode);
+            Log.d(TAG, "Operation Code : " + operationCode);
+            Log.d(TAG, "Error Code : " + errorCode);
 
-                    switch (resultCode) {
-                        case DOWNLOAD_SUCCESSFUL:
-                            mListener.onDownloadComplete(pSIMSubId);
-                            break;
+            DownloadRetryResultCode resultCode =
+                    mapDownloaderErrorCode(msg.arg1, detailedErrCode, operationCode, errorCode);
+            Log.d(TAG, "DownloadRetryResultCode: " + resultCode);
 
-                        case ERR_UNRESOLVABLE:
-                            mListener.onDownloadError(pSIMSubId, resultCode, detailedErrCode);
-                            Log.e(TAG, "Unresolvable download error: "
+            switch (resultCode) {
+                case DOWNLOAD_SUCCESSFUL:
+                    mListener.onDownloadComplete(pSIMSubId);
+                    break;
+
+                case ERR_UNRESOLVABLE:
+                    mListener.onDownloadError(pSIMSubId, resultCode, detailedErrCode);
+                    Log.e(
+                            TAG,
+                            "Unresolvable download error: "
                                     + getUnresolvableErrorDescription(errorCode));
-                            break;
+                    break;
 
-                        default:
-                            mListener.onDownloadError(pSIMSubId, resultCode, detailedErrCode);
-                            break;
-                    }
-                }
-                break;
+                default:
+                    mListener.onDownloadError(pSIMSubId, resultCode, detailedErrCode);
+                    break;
             }
         }
 
@@ -344,5 +352,14 @@ public class ONSProfileDownloader {
         msg.arg1 = resultCode;
         msg.obj = intent;
         mHandler.sendMessage(msg);
+    }
+
+    /**
+     * Dump the state of {@link ONSProfileDownloader}.
+     */
+    public void dump(@NonNull FileDescriptor fd, @NonNull PrintWriter pw,
+            @NonNull String[] args) {
+        pw.println(TAG + ":");
+        pw.println("  mDownloadingPSimSubId: " + mDownloadingPSimSubId);
     }
 }

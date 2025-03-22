@@ -16,67 +16,31 @@
 
 package com.android.ons;
 
+import static android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+
 import android.telephony.AvailableNetworkInfo;
-import android.telephony.SubscriptionManager;
 
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * OpportunisticNetworkService implements ions.
- * It scans network and matches the results with opportunistic subscriptions.
- * Use the same to provide user opportunistic data in areas with corresponding networks
+ * ONSConfigInput is data class that passes configuration parameters to
+ * {@link OpportunisticNetworkService}.
  */
-public class ONSConfigInput {
-    private static final String TAG = "ONSConfigInput";
-    private static final boolean DBG = true;
-    private ArrayList<AvailableNetworkInfo> mAvailableNetworkInfos;
-    private int mPreferredDataSub;
-    private int mPrimarySub;
-    private IUpdateAvailableNetworksCallback mAvailableNetworkCallback;
-
-    ONSConfigInput(ArrayList<AvailableNetworkInfo> availableNetworkInfos,
+public record ONSConfigInput(List<AvailableNetworkInfo> availableNetworkInfos,
+                             IUpdateAvailableNetworksCallback availableNetworkCallback,
+                             int preferredDataSub, int primarySub) {
+    /**
+     * Construct ONSConfigInput with INVALID_SUBSCRIPTION_ID as default value for both {@code
+     * preferredDataSub} and {@code primarySub}
+     *
+     * @param availableNetworkInfos A List of AvailableNetworkInfo
+     * @param callback              IUpdateAvailableNetworksCallback to receive callback on update
+     */
+    public ONSConfigInput(List<AvailableNetworkInfo> availableNetworkInfos,
             IUpdateAvailableNetworksCallback callback) {
-        mAvailableNetworkInfos = availableNetworkInfos;
-        mPreferredDataSub = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
-        mPrimarySub = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
-        mAvailableNetworkCallback = callback;
-    }
-
-    public IUpdateAvailableNetworksCallback getAvailableNetworkCallback() {
-        return mAvailableNetworkCallback;
-    }
-
-    public void setAvailableNetworkInfo(ArrayList<AvailableNetworkInfo> availableNetworkInfos) {
-        mAvailableNetworkInfos = availableNetworkInfos;
-    }
-
-    public void setPreferredDataSub(int preferredDataSub) {
-        mPreferredDataSub = preferredDataSub;
-    }
-
-    public int getPreferredDataSub() {
-        return mPreferredDataSub;
-    }
-
-    public void setPrimarySub(int primarySub) {
-        mPrimarySub = primarySub;
-    }
-
-    public int getPrimarySub() {
-        return mPrimarySub;
-    }
-
-    public ArrayList<AvailableNetworkInfo> getAvailableNetworkInfos() {
-        return mAvailableNetworkInfos;
-    }
-
-    @Override
-    public String toString() {
-        return ("ONSConfigInput:"
-                + " " + mAvailableNetworkInfos
-                + " " + mPreferredDataSub);
+        this(availableNetworkInfos, callback, INVALID_SUBSCRIPTION_ID,
+                INVALID_SUBSCRIPTION_ID);
     }
 }

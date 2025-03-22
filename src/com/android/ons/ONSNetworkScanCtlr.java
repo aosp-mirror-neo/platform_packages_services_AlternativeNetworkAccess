@@ -16,6 +16,7 @@
 
 package com.android.ons;
 
+import android.annotation.NonNull;
 import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -34,31 +35,31 @@ import android.telephony.RadioAccessSpecifier;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyScanManager;
 import android.util.ArraySet;
+import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.telephony.Rlog;
 
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
- * Network Scan controller class which will scan for the specific bands as requested and
- * provide results to caller when ready.
+ * ONSNetworkScanCtlr accepts NetworkScan requests, performs NetworkScan and notifies registrants
+ * the network availability with the scan results.
  */
 public class ONSNetworkScanCtlr {
-    private static final String LOG_TAG = "ONSNetworkScanCtlr";
+    private static final String TAG = "ONSNetworkScanCtlr";
     private static final boolean DBG = true;
-    private static final int SEARCH_PERIODICITY_SLOW = (int) TimeUnit.MINUTES.toSeconds(5);
     private static final int SEARCH_PERIODICITY_FAST = (int) TimeUnit.MINUTES.toSeconds(1);
     private static final int MAX_SEARCH_TIME = (int) TimeUnit.MINUTES.toSeconds(1);
     private static final int SCAN_RESTART_TIME = (int) TimeUnit.MINUTES.toMillis(1);
     private final Object mLock = new Object();
 
-    /* message  to handle scan responses from modem */
+    /** Message  to handle scan responses from modem */
     private static final int MSG_SCAN_RESULTS_AVAILABLE = 1;
     private static final int MSG_SCAN_COMPLETE = 2;
     private static final int MSG_SCAN_ERROR = 3;
@@ -74,13 +75,13 @@ public class ONSNetworkScanCtlr {
             null);
     @VisibleForTesting
     static final RadioAccessSpecifier DEFAULT_4G_RAS = new RadioAccessSpecifier(
-        AccessNetworkConstants.AccessNetworkType.NGRAN,
+        AccessNetworkConstants.AccessNetworkType.EUTRAN,
         new int[] {
                 AccessNetworkConstants.EutranBand.BAND_48,
                 AccessNetworkConstants.EutranBand.BAND_71},
         null);
 
-    /* scan object to keep track of current scan request */
+    /** Scan object to keep track of current scan request */
     private NetworkScan mCurrentScan;
     private boolean mIsScanActive;
     private NetworkScanRequest mCurrentScanRequest;
@@ -151,34 +152,27 @@ public class ONSNetworkScanCtlr {
 
     private int getIntCarrierConfig(String key) {
         PersistableBundle b = getConfigBundle();
-        if (b != null) {
-            return b.getInt(key);
-        } else {
-            // Return static default defined in CarrierConfigManager.
-            return CarrierConfigManager.getDefaultConfig().getInt(key);
-        }
+        // Return static default defined in CarrierConfigManager.
+        return b != null ? b.getInt(key) : CarrierConfigManager.getDefaultConfig().getInt(key);
     }
 
     private boolean getBooleanCarrierConfig(String key) {
         PersistableBundle b = getConfigBundle();
-        if (b != null) {
-            return b.getBoolean(key);
-        } else {
-            // Return static default defined in CarrierConfigManager.
-            return CarrierConfigManager.getDefaultConfig().getBoolean(key);
-        }
+        // Return static default defined in CarrierConfigManager.
+        return b != null ? b.getBoolean(key) : CarrierConfigManager.getDefaultConfig().getBoolean(
+                key);
     }
 
     /**
-     * analyze scan results
+     * Analyze scan results
      * @param results contains all available cells matching the scan request at current location.
      */
     public void analyzeScanResults(List<CellInfo> results) {
-        /* Inform registrants about availability of network */
+        // Inform registrants about availability of network
         if (!mIsScanActive || results == null) {
           return;
         }
-        List<CellInfo> filteredResults = new ArrayList<CellInfo>();
+        List<CellInfo> filteredResults = new ArrayList<>();
         mIs4gScanEnabled = getIs4gScanEnabled();
         synchronized (mLock) {
             for (CellInfo cellInfo : results) {
@@ -202,8 +196,8 @@ public class ONSNetworkScanCtlr {
                 }
             }
         }
-        if ((filteredResults.size() >= 1) && (mNetworkAvailableCallBack != null)) {
-            /* Todo: change to aggregate results on success. */
+        if ((!filteredResults.isEmpty()) && (mNetworkAvailableCallBack != null)) {
+            // Todo: change to aggregate results on success.
             mNetworkAvailableCallBack.onNetworkAvailability(filteredResults);
         }
     }
@@ -226,15 +220,15 @@ public class ONSNetworkScanCtlr {
     }
 
     /**
-     * initialize Network Scan controller
-     * @param c context
+     * Initialize Network Scan controller
+     * @param context context
      * @param telephonyManager Telephony manager instance
      * @param networkAvailableCallBack callback to be called when network selection is done
      */
     public void init(Context context, TelephonyManager telephonyManager,
             NetworkAvailableCallBack networkAvailableCallBack) {
         log("init called");
-        mThread = new HandlerThread(LOG_TAG);
+        mThread = new HandlerThread(TAG);
         mThread.start();
         mHandler =  new Handler(mThread.getLooper()) {
             @Override
@@ -295,16 +289,16 @@ public class ONSNetworkScanCtlr {
     }
 
     @VisibleForTesting
-    NetworkScanRequest createNetworkScanRequest(ArrayList<AvailableNetworkInfo> availableNetworks,
+    NetworkScanRequest createNetworkScanRequest(List<AvailableNetworkInfo> availableNetworks,
         int periodicity) {
         RadioAccessSpecifier[] ras;
-        ArrayList<String> mccMncs = new ArrayList<String>();
+        ArrayList<String> mccMncs = new ArrayList<>();
         Set<Integer> bandSet5G = new ArraySet<>();
         Set<Integer> bandSet4G = new ArraySet<>();
 
         mIs4gScanEnabled = getIs4gScanEnabled();
 
-        /* retrieve mcc mncs and bands for available networks */
+        // retrieve mcc mncs and bands for available networks
         for (AvailableNetworkInfo availableNetwork : availableNetworks) {
             mccMncs.addAll(availableNetwork.getMccMncs());
             List<RadioAccessSpecifier> radioAccessSpecifiers =
@@ -321,11 +315,11 @@ public class ONSNetworkScanCtlr {
                             radioAccessNetworkType ==
                                     AccessNetworkConstants.AccessNetworkType.EUTRAN) {
                         bandSet4G.addAll(Arrays.stream(radioAccessSpecifier.getBands())
-                                .boxed().collect(Collectors.toList()));
+                                .boxed().toList());
                     } else if (radioAccessNetworkType ==
                             AccessNetworkConstants.AccessNetworkType.NGRAN) {
                         bandSet5G.addAll(Arrays.stream(radioAccessSpecifier.getBands())
-                                .boxed().collect(Collectors.toList()));
+                                .boxed().toList());
                     }
                 }
             }
@@ -368,11 +362,11 @@ public class ONSNetworkScanCtlr {
     }
 
     /**
-     * start less interval network scan
+     * Start less interval network scan
      * @param availableNetworks list of subscriptions for which the scanning needs to be started.
      * @return true if successfully accepted request.
      */
-    public boolean startFastNetworkScan(ArrayList<AvailableNetworkInfo> availableNetworks) {
+    public boolean startFastNetworkScan(List<AvailableNetworkInfo> availableNetworks) {
         NetworkScanRequest networkScanRequest = createNetworkScanRequest(availableNetworks,
                 SEARCH_PERIODICITY_FAST);
         return startNetworkScan(networkScanRequest);
@@ -382,15 +376,15 @@ public class ONSNetworkScanCtlr {
     private boolean startNetworkScan(NetworkScanRequest networkScanRequest) {
         NetworkScan networkScan;
         synchronized (mLock) {
-            /* if the request is same as existing one, then make sure to not proceed */
+            // if the request is same as existing one, then make sure to not proceed
             if (mIsScanActive && mCurrentScanRequest.equals(networkScanRequest)) {
                 return true;
             }
 
-            /* Need to stop current scan if we already have one */
+            // Need to stop current scan if we already have one
             stopNetworkScan();
 
-            /* user lower threshold to enable modem stack */
+            // user lower threshold to enable modem stack
             mRsrpEntryThreshold =
                 getIntCarrierConfig(
                     CarrierConfigManager.KEY_OPPORTUNISTIC_NETWORK_EXIT_THRESHOLD_RSRP_INT);
@@ -398,7 +392,7 @@ public class ONSNetworkScanCtlr {
             mSsRsrpEntryThreshold = getIntCarrierConfig(
                     CarrierConfigManager.OpportunisticNetwork.KEY_ENTRY_THRESHOLD_SS_RSRP_INT);
 
-            /* start new scan */
+            // start new scan
             networkScan = mTelephonyManager.requestNetworkScan(networkScanRequest,
                     mNetworkScanCallback);
 
@@ -424,7 +418,7 @@ public class ONSNetworkScanCtlr {
     }
 
     /**
-     * stop network scan
+     * Stop network scan
      */
     public void stopNetworkScan() {
         logDebug("stopNetworkScan");
@@ -443,12 +437,26 @@ public class ONSNetworkScanCtlr {
     }
 
     private static void log(String msg) {
-        Rlog.d(LOG_TAG, msg);
+        Log.d(TAG, msg);
     }
 
     private static void logDebug(String msg) {
         if (DBG) {
-            Rlog.d(LOG_TAG, msg);
+            Log.d(TAG, msg);
         }
+    }
+
+    /**
+     * Dump the state of {@link ONSNetworkScanCtlr}.
+     */
+    public void dump(@NonNull FileDescriptor fd, @NonNull PrintWriter pw,
+            @NonNull String[] args) {
+        pw.println(TAG + ":");
+        pw.println("  mIs4gScanEnabled: " + mIs4gScanEnabled);
+        pw.println("  mIsScanActive: " + mIsScanActive);
+        pw.println("  mCurrentScanRequest: " + mCurrentScanRequest);
+        pw.println("  mMccMncs: " + mMccMncs);
+        pw.println("  mRsrpEntryThreshold: " + mRsrpEntryThreshold);
+        pw.println("  mSsRsrpEntryThreshold: " + mSsRsrpEntryThreshold);
     }
 }

@@ -22,6 +22,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
+/**
+ * ONSAutoBoot is a {@link BroadcastReceiver} that listens to
+ * {@link Intent#ACTION_LOCKED_BOOT_COMPLETED} event. Once the event is received, it will start
+ * {@link OpportunisticNetworkService}.
+ */
 public class ONSAutoBoot extends BroadcastReceiver {
     private static final String TAG = "ONSAutoboot";
 
@@ -33,7 +38,7 @@ public class ONSAutoBoot extends BroadcastReceiver {
                     OpportunisticNetworkService.class.getName());
             ComponentName service = context.startService(new Intent().setComponent(comp));
             if (service == null) {
-                Log.d(TAG, "Could not start service " + comp.toString());
+                Log.d(TAG, "Could not start service " + comp);
             }
         }
     }

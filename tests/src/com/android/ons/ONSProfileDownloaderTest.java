@@ -64,8 +64,6 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
     @Mock
     CarrierConfigManager mMockCarrierConfigManager;
     @Mock
-    private ONSProfileConfigurator mMockONSProfileConfig;
-    @Mock
     ONSProfileDownloader.IONSProfileDownloaderListener mMockDownloadListener;
 
     @Before
@@ -108,7 +106,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
         ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
                 mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                mMockONSProfileConfig, null);
+                null);
 
         onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
 
@@ -146,7 +144,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
                         mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                        mMockONSProfileConfig, mListener);
+                        mListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -191,7 +189,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
                         mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -229,7 +227,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
                         mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -279,7 +277,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
                         mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -336,7 +334,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
                         mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -393,7 +391,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
                         mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -450,7 +448,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
                         mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                        mMockDownloadListener);
 
                 Intent intent = new Intent(mContext, ONSProfileResultReceiver.class);
                 intent.setAction(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
@@ -494,7 +492,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
                 ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mMockContext,
                         mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                        mMockONSProfileConfig, mMockDownloadListener);
+                        mMockDownloadListener);
 
                 ONSProfileDownloader.DownloadHandler downloadHandler =
                         onsProfileDownloader.new DownloadHandler();
@@ -636,7 +634,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
         ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
                 mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                mMockONSProfileConfig, mMockDownloadListener);
+                mMockDownloadListener);
 
         //When multiple download requests are received, download should be triggered only once.
         onsProfileDownloader.downloadProfile(mMockSubInfo.getSubscriptionId());
@@ -693,7 +691,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
 
         ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
                 mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                mMockONSProfileConfig, mMockDownloadListener);
+                mMockDownloadListener);
 
         // First download request to be failed with INVALID_SMDP_ADDRESS error because of empty SMDP
         // server address in configuration.
@@ -739,7 +737,7 @@ public class ONSProfileDownloaderTest extends ONSBaseTest {
         doReturn(mMockSubInfo).when(mMockSubManager).getActiveSubscriptionInfo(TEST_SUB_ID);
         ONSProfileDownloader onsProfileDownloader = new ONSProfileDownloader(mContext,
                 mMockCarrierConfigManager, mMockEuiccManager, mMockSubManager,
-                mMockONSProfileConfig, mMockDownloadListener);
+                mMockDownloadListener);
 
         onsProfileDownloader.downloadProfile(TEST_SUB_ID);
         verify(mMockEuiccManagerForCard1, times(1)).downloadSubscription(any(), eq(true), any());
