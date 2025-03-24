@@ -38,6 +38,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class ONSProfileConfiguratorTest extends ONSBaseTest {
@@ -98,7 +99,7 @@ public class ONSProfileConfiguratorTest extends ONSBaseTest {
         mOnsProfileConfigurator.groupWithPSIMAndSetOpportunistic(
                 mMockSubscriptionInfo1, parcelUuid);
 
-        ArrayList<Integer> subList = new ArrayList<>();
+        List<Integer> subList = new ArrayList<>();
         subList.add(TEST_SUB_ID);
         verify(mMockSubManager).addSubscriptionsIntoGroup(subList, parcelUuid);
     }
@@ -137,7 +138,7 @@ public class ONSProfileConfiguratorTest extends ONSBaseTest {
                         intent,
                         PendingIntent.FLAG_IMMUTABLE);
 
-        ArrayList<SubscriptionInfo> activeSubInfos = new ArrayList<>();
+        List<SubscriptionInfo> activeSubInfos = new ArrayList<>();
 
         doReturn(1).when(mMockSubscriptionInfo1).getSubscriptionId();
         doReturn(1).when(mMockSubscriptionInfo1).getCardId();
@@ -180,7 +181,7 @@ public class ONSProfileConfiguratorTest extends ONSBaseTest {
         doReturn(2).when(mMockSubscriptionInfo2).getCardId();
         doReturn(false).when(mMockSubManager).isActiveSubscriptionId(2);
 
-        ArrayList<SubscriptionInfo> oppSubList = new ArrayList<>();
+        List<SubscriptionInfo> oppSubList = new ArrayList<>();
         oppSubList.add(mMockSubscriptionInfo1);
         oppSubList.add(mMockSubscriptionInfo2);
         doReturn(oppSubList).when(mMockSubManager).getOpportunisticSubscriptions();
@@ -218,7 +219,7 @@ public class ONSProfileConfiguratorTest extends ONSBaseTest {
                 CarrierConfigManager.KEY_OPPORTUNISTIC_CARRIER_IDS_INT_ARRAY, oppCarrierList);
         doReturn(persistableBundle).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUB_ID);
 
-        ArrayList<SubscriptionInfo> oppSubList = new ArrayList<>();
+        List<SubscriptionInfo> oppSubList = new ArrayList<>();
         oppSubList.add(mMockSubscriptionInfo1);
         oppSubList.add(mMockSubscriptionInfo2);
         doReturn(oppSubList).when(mMockSubManager).getAvailableSubscriptionInfoList();

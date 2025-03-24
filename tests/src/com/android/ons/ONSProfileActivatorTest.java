@@ -104,8 +104,8 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
                 .KEY_CARRIER_SUPPORTS_OPP_DATA_AUTO_PROVISIONING_BOOL, true);
         doReturn(persistableBundle).when(mMockCarrierConfigManager).getConfigForSubId(TEST_SUBID_1);
 
-        ArrayList<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
-        ArrayList<UiccPortInfo> uiccPortInfoList =  new ArrayList<>();
+        List<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
+        List<UiccPortInfo> uiccPortInfoList =  new ArrayList<>();
         uiccPortInfoList.add(
                 new UiccPortInfo("123451234567890" /* iccId */,
                 0 /* portIdx */,
@@ -219,7 +219,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(true).when(mMockTeleManager).doesSwitchMultiSimConfigTriggerReboot();
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
-        doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(TEST_SUBID_0);
+        doReturn(mMockSubInfo).when(mMockactiveSubInfos).getFirst();
         doReturn(1).when(mMockSubInfo).getSubscriptionId();
         doReturn(false).when(mMockSubInfo).isOpportunistic();
 
@@ -241,7 +241,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(1).when(mMockTeleManager).getActiveModemCount();
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
-        doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(TEST_SUBID_0);
+        doReturn(mMockSubInfo).when(mMockactiveSubInfos).getFirst();
         doReturn(1).when(mMockSubInfo).getSubscriptionId();
         doReturn(false).when(mMockSubInfo).isOpportunistic();
 
@@ -265,6 +265,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(2).when(mMockTeleManager).getActiveModemCount();
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(0).when(mMockactiveSubInfos).size();
+        doReturn(true).when(mMockactiveSubInfos).isEmpty();
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
                 mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
@@ -308,7 +309,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
-        doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(TEST_SUBID_0);
+        doReturn(mMockSubInfo).when(mMockactiveSubInfos).getFirst();
         doReturn(TEST_SUBID_0).when(mMockSubInfo).getSubscriptionId();
         doReturn(false).when(mMockSubInfo).isOpportunistic();
 
@@ -330,7 +331,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(2).when(mMockTeleManager).getSupportedModemCount();
         doReturn(2).when(mMockTeleManager).getActiveModemCount();
 
-        ArrayList<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
+        List<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
         mActiveSubInfos.add(mMockSubInfo);
         mActiveSubInfos.add(mMockSubInfo1);
         doReturn(mActiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
@@ -353,7 +354,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(2).when(mMockTeleManager).getSupportedModemCount();
         doReturn(2).when(mMockTeleManager).getActiveModemCount();
 
-        ArrayList<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
+        List<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
         mActiveSubInfos.add(mMockSubInfo);
         mActiveSubInfos.add(mMockSubInfo1);
         doReturn(mActiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
@@ -383,7 +384,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(2).when(mMockTeleManager).getSupportedModemCount();
         doReturn(2).when(mMockTeleManager).getActiveModemCount();
 
-        ArrayList<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
+        List<SubscriptionInfo> mActiveSubInfos = new ArrayList<>();
         mActiveSubInfos.add(mMockSubInfo); //Primary CBRS SIM
         mActiveSubInfos.add(mMockSubInfo1); //Opportunistic eSIM
         doReturn(mActiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
@@ -433,7 +434,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         doReturn(2).when(mMockTeleManager).getActiveModemCount();
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
-        doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(0);
+        doReturn(mMockSubInfo).when(mMockactiveSubInfos).getFirst();
         doReturn(true).when(mMockSubInfo).isOpportunistic();
 
         ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
@@ -456,7 +457,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
-        doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(0);
+        doReturn(mMockSubInfo).when(mMockactiveSubInfos).getFirst();
         doReturn(false).when(mMockSubInfo).isOpportunistic();
         doReturn(TEST_SUBID_1).when(mMockSubInfo).getSubscriptionId();
         doReturn(null).when(mMockSubInfo).getGroupUuid();
@@ -655,7 +656,7 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
 
         doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
         doReturn(1).when(mMockactiveSubInfos).size();
-        doReturn(mMockSubInfo).when(mMockactiveSubInfos).get(0);
+        doReturn(mMockSubInfo).when(mMockactiveSubInfos).getFirst();
         doReturn(false).when(mMockSubInfo).isOpportunistic();
         doReturn(TEST_SUBID_0).when(mMockSubInfo).getSubscriptionId();
         doReturn(null).when(mMockSubInfo).getGroupUuid();

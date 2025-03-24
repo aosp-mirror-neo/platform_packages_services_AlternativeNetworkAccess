@@ -61,6 +61,7 @@ import org.mockito.Mock;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 @RunWith(AndroidJUnit4.class)
 public class OpportunisticNetworkServiceTest extends ONSBaseTest {
@@ -166,7 +167,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         mccMncs.add("310210");
         AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
                 new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+        List<AvailableNetworkInfo> availableNetworkInfos =
                 new ArrayList<AvailableNetworkInfo>();
         availableNetworkInfos.add(availableNetworkInfo);
         IUpdateAvailableNetworksCallback mCallback = new IUpdateAvailableNetworksCallback.Stub() {
@@ -176,10 +177,9 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
                 Log.d(TAG, "result: " + result);
             }
         };
-        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback);
-        onsConfigInput.setPrimarySub(1);
-        onsConfigInput.setPreferredDataSub(availableNetworkInfos.get(0).getSubId());
-        ArrayList<SubscriptionInfo> subscriptionInfos = new ArrayList<SubscriptionInfo>();
+        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback,
+                availableNetworkInfos.get(0).getSubId(), 1);
+        List<SubscriptionInfo> subscriptionInfos = new ArrayList<SubscriptionInfo>();
 
         // Case 1: There is no Carrier app using ONS.
         doReturn(null).when(mockONSConfigInputHashMap).get(CARRIER_APP_CONFIG_NAME);
@@ -207,7 +207,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         mccMncs.add("310210");
         AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
             new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+        List<AvailableNetworkInfo> availableNetworkInfos =
             new ArrayList<AvailableNetworkInfo>();
         availableNetworkInfos.add(availableNetworkInfo);
         IUpdateAvailableNetworksCallback mCallback = new IUpdateAvailableNetworksCallback.Stub() {
@@ -217,10 +217,9 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
                 Log.d(TAG, "result: " + result);
             }
         };
-        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback);
-        onsConfigInput.setPrimarySub(1);
-        onsConfigInput.setPreferredDataSub(availableNetworkInfos.get(0).getSubId());
-        ArrayList<SubscriptionInfo> subscriptionInfos = new ArrayList<SubscriptionInfo>();
+        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback,
+                availableNetworkInfos.get(0).getSubId(), 1);
+        List<SubscriptionInfo> subscriptionInfos = new ArrayList<SubscriptionInfo>();
 
         doReturn(subscriptionInfos).when(mSubscriptionManager).getActiveSubscriptionInfoList(false);
         doReturn(onsConfigInput).when(mockONSConfigInputHashMap).get(CARRIER_APP_CONFIG_NAME);
@@ -298,7 +297,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         mccMncs.add("310210");
         AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
                 new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<>();
+        List<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<>();
         availableNetworkInfos.add(availableNetworkInfo);
 
         try {
@@ -321,7 +320,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
                 mResult = result;
             }
         };
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<>();
+        List<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<>();
         try {
             iOpportunisticNetworkService.setEnable(false, pkgForDebug);
             iOpportunisticNetworkService.updateAvailableNetworks(availableNetworkInfos, mCallback,
@@ -338,7 +337,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         mccMncs.add("310210");
         AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
                 new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+        List<AvailableNetworkInfo> availableNetworkInfos =
                 new ArrayList<AvailableNetworkInfo>();
         availableNetworkInfos.add(availableNetworkInfo);
         mResult = -1;
@@ -349,11 +348,10 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
                 Log.d(TAG, "result: " + result);
             }
         };
-        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback);
-        onsConfigInput.setPrimarySub(1);
-        onsConfigInput.setPreferredDataSub(availableNetworkInfos.get(0).getSubId());
+        ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworkInfos, mCallback,
+                availableNetworkInfos.get(0).getSubId(), 1);
         doReturn(onsConfigInput).when(mockONSConfigInputHashMap).get(CARRIER_APP_CONFIG_NAME);
-        doReturn(true).when(mockProfileSelector).hasOpprotunisticSub(any());
+        doReturn(true).when(mockProfileSelector).hasOpportunisticSub(any());
         doReturn(false).when(mockProfileSelector).containStandaloneOppSubs(any());
         mOpportunisticNetworkService.mIsEnabled = true;
         mOpportunisticNetworkService.mONSConfigInputHashMap = mockONSConfigInputHashMap;
@@ -446,7 +444,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         mccMncs.add("310210");
         AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
                 new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<>();
+        List<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<>();
         availableNetworkInfos.add(availableNetworkInfo);
 
         // Enabled FeatureFlags and ENABLE_FEATURE_MAPPING, telephony features are defined
