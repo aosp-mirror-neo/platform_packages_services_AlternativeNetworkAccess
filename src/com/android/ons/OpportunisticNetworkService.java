@@ -196,7 +196,7 @@ public class OpportunisticNetworkService extends Service {
 
         logDebug("Carrier subscription is not available, removing entry");
         mONSConfigInputHashMap.put(CARRIER_APP_CONFIG_NAME, null);
-        if (!mIsEnabled) {
+        if (!getEnableState()) {
             return;
         }
         if (mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME) != null) {
@@ -271,7 +271,7 @@ public class OpportunisticNetworkService extends Service {
             enforceTelephonyFeatureWithException(callingPackage,
                     PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS, "isEnabled");
 
-            return mIsEnabled;
+            return getEnableState();
         }
 
         /**
@@ -571,6 +571,7 @@ public class OpportunisticNetworkService extends Service {
     private void handleCarrierAppAvailableNetworks(
             List<AvailableNetworkInfo> availableNetworks,
             IUpdateAvailableNetworksCallback callbackStub, String callingPackage) {
+        boolean isEnabled = getEnableState();
         if (availableNetworks != null && !availableNetworks.isEmpty()) {
             /* carrier apps should report only subscription */
             if (availableNetworks.size() > 1) {
@@ -641,7 +642,7 @@ public class OpportunisticNetworkService extends Service {
                     }
                 }
 
-                if (mIsEnabled) {
+                if (isEnabled) {
                     //  if carrier is reporting availability, then it takes higher priority.
                     mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
                 } else {
@@ -660,7 +661,7 @@ public class OpportunisticNetworkService extends Service {
             final long identity = Binder.clearCallingIdentity();
             try {
                 mONSConfigInputHashMap.put(CARRIER_APP_CONFIG_NAME, null);
-                if (!mIsEnabled) {
+                if (!isEnabled) {
                     sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
                     return;
@@ -709,6 +710,7 @@ public class OpportunisticNetworkService extends Service {
     private void handleSystemAppAvailableNetworks(
             List<AvailableNetworkInfo> availableNetworks,
             IUpdateAvailableNetworksCallback callbackStub) {
+        boolean isEnabled = getEnableState();
         final long identity = Binder.clearCallingIdentity();
         try {
             if ((availableNetworks != null) && (!availableNetworks.isEmpty())) {
@@ -729,7 +731,7 @@ public class OpportunisticNetworkService extends Service {
                         new ONSConfigInput(availableNetworks, callbackStub));
                 // Reporting availability. proceed if carrier app has not requested any, but
                 // standalone opportunistic subscription should be handled in priority.
-                if (mIsEnabled) {
+                if (isEnabled) {
                     if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) == null
                             || mProfileSelector.containStandaloneOppSubs(availableNetworks)) {
                         mProfileSelector.startProfileSelection(availableNetworks, callbackStub);
@@ -744,7 +746,7 @@ public class OpportunisticNetworkService extends Service {
                     }
                 }
             } else {
-                if (!mIsEnabled) {
+                if (!isEnabled) {
                     mONSConfigInputHashMap.put(SYSTEM_APP_CONFIG_NAME, null);
                     sendUpdateNetworksCallbackHelper(callbackStub,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
@@ -776,6 +778,10 @@ public class OpportunisticNetworkService extends Service {
         mSharedPref.edit().putBoolean(PREF_ENABLED, mIsEnabled).apply();
     }
 
+    private boolean getEnableState() {
+        return mIsEnabled;
+    }
+
     /**
      * update the enable state
      * start profile selection if enabled.
@@ -783,11 +789,11 @@ public class OpportunisticNetworkService extends Service {
      */
     private void enableOpportunisticNetwork(boolean enable) {
         synchronized (mLock) {
-            if (mIsEnabled == enable) {
+            if (getEnableState() == enable) {
                 return;
             }
             updateEnableState(enable);
-            if (!mIsEnabled) {
+            if (!getEnableState()) {
                 mProfileSelector.stopProfileSelection(null);
             } else {
                 if (mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME) != null
@@ -809,7 +815,7 @@ public class OpportunisticNetworkService extends Service {
                 }
             }
         }
-        logDebug("service is enable state " + mIsEnabled);
+        logDebug("service is enable state " + getEnableState());
     }
 
     /**
@@ -870,7 +876,7 @@ public class OpportunisticNetworkService extends Service {
         final long token = Binder.clearCallingIdentity();
         try {
             pw.println(OpportunisticNetworkService.class.getSimpleName() + ":");
-            pw.println("  mIsEnabled = " + mIsEnabled);
+            pw.println("  mIsEnabled = " + getEnableState());
             mONSProfileActivator.dump(fd, pw, args);
             mProfileSelector.dump(fd, pw, args);
         } finally {
