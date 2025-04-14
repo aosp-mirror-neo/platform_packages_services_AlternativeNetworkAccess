@@ -20,6 +20,7 @@ import static android.telephony.AvailableNetworkInfo.PRIORITY_HIGH;
 import static android.telephony.AvailableNetworkInfo.PRIORITY_LOW;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.PendingIntent;
 import android.compat.Compatibility;
 import android.content.Context;
@@ -315,11 +316,20 @@ public class ONSProfileSelector {
         return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
     }
 
+    @Nullable private List<SubscriptionInfo> getStandaloneOppSubsInfos() {
+        return mStandaloneOppSubInfos;
+    }
+
+    @Nullable private List<SubscriptionInfo> getOppSubscriptionInfos() {
+        return mOppSubscriptionInfos;
+    }
+
     public SubscriptionInfo getOpportunisticSubInfo(int subId) {
-        if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.isEmpty())) {
+        List<SubscriptionInfo> oppSubInfos = getOppSubscriptionInfos();
+        if ((oppSubInfos == null) || (oppSubInfos.isEmpty())) {
             return null;
         }
-        for (SubscriptionInfo subscriptionInfo : mOppSubscriptionInfos) {
+        for (SubscriptionInfo subscriptionInfo : oppSubInfos) {
             if (subscriptionInfo.getSubscriptionId() == subId) {
                 return subscriptionInfo;
             }
@@ -334,10 +344,11 @@ public class ONSProfileSelector {
      * @return true if the subscription is opportunistic
      */
     public boolean isOpportunisticSub(int subId) {
-        if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.isEmpty())) {
+        List<SubscriptionInfo> oppSubInfos = getOppSubscriptionInfos();
+        if ((oppSubInfos == null) || (oppSubInfos.isEmpty())) {
             return false;
         }
-        for (SubscriptionInfo subscriptionInfo : mOppSubscriptionInfos) {
+        for (SubscriptionInfo subscriptionInfo : oppSubInfos) {
             if (subscriptionInfo.getSubscriptionId() == subId) {
                 return true;
             }
@@ -349,7 +360,8 @@ public class ONSProfileSelector {
         if ((availableNetworks == null) || (availableNetworks.isEmpty())) {
             return false;
         }
-        if ((mOppSubscriptionInfos == null) || (mOppSubscriptionInfos.isEmpty())) {
+        List<SubscriptionInfo> oppSubInfos = getOppSubscriptionInfos();
+        if ((oppSubInfos == null) || (oppSubInfos.isEmpty())) {
             return false;
         }
 
@@ -523,7 +535,8 @@ public class ONSProfileSelector {
                 (List<AvailableNetworkInfo>) objects[0];
         IUpdateAvailableNetworksCallback callbackStub =
                 (IUpdateAvailableNetworksCallback) objects[1];
-        if (mOppSubscriptionInfos == null) {
+        List<SubscriptionInfo> oppSubInfos = getOppSubscriptionInfos();
+        if (oppSubInfos == null) {
             logDebug("null subscription infos");
             if (Compatibility.isChangeEnabled(
                     OpportunisticNetworkService.CALLBACK_ON_MORE_ERROR_CODE_CHANGE)) {
@@ -562,11 +575,11 @@ public class ONSProfileSelector {
         Collections.sort(mAvailableNetworkInfos, new SortAvailableNetworksInPriority());
         logDebug("availableNetworks: " + availableNetworks);
 
-        if (!mOppSubscriptionInfos.isEmpty()) {
-            logDebug("opportunistic subscriptions size " + mOppSubscriptionInfos.size());
+        if (!oppSubInfos.isEmpty()) {
+            logDebug("opportunistic subscriptions size " + oppSubInfos.size());
             List<AvailableNetworkInfo> filteredAvailableNetworks =
                     getFilteredAvailableNetworks(availableNetworks,
-                            mOppSubscriptionInfos);
+                            oppSubInfos);
             if ((filteredAvailableNetworks.size() == 1)
                     && ((filteredAvailableNetworks.getFirst().getMccMncs() == null)
                     || (filteredAvailableNetworks.getFirst().getMccMncs().isEmpty()))) {
@@ -727,14 +740,15 @@ public class ONSProfileSelector {
      * Return {@code true} if the provided {@code availableNetworks} contains standalone oppt subs.
      */
     public boolean containStandaloneOppSubs(List<AvailableNetworkInfo> availableNetworks) {
-        if (mStandaloneOppSubInfos == null || mStandaloneOppSubInfos.isEmpty()) {
+        List<SubscriptionInfo> standaloneOppSubInfos = getStandaloneOppSubsInfos();
+        if (standaloneOppSubInfos == null || standaloneOppSubInfos.isEmpty()) {
             logDebug("received null or empty subscription infos");
             return false;
         }
 
-        logDebug("Standalone opportunistic subInfos size " + mStandaloneOppSubInfos.size());
+        logDebug("Standalone opportunistic subInfos size " + standaloneOppSubInfos.size());
         List<AvailableNetworkInfo> filteredAvailableNetworks =
-                getFilteredAvailableNetworks(availableNetworks, mStandaloneOppSubInfos);
+                getFilteredAvailableNetworks(availableNetworks, standaloneOppSubInfos);
         return !filteredAvailableNetworks.isEmpty();
     }
 
@@ -845,11 +859,14 @@ public class ONSProfileSelector {
         // Do nothing in single SIM mode.
         if (phoneCount < 2) return;
 
+        List<SubscriptionInfo> oppSubInfos = getOppSubscriptionInfos();
         for (int i = 0; i < phoneCount; i++) {
             boolean hasActiveOpptProfile = false;
-            for (SubscriptionInfo info : mOppSubscriptionInfos) {
-                if (info.getSimSlotIndex() == i) {
-                    hasActiveOpptProfile = true;
+            if (oppSubInfos != null) {
+                for (SubscriptionInfo info : oppSubInfos) {
+                    if (info.getSimSlotIndex() == i) {
+                        hasActiveOpptProfile = true;
+                    }
                 }
             }
             // If the slot doesn't have active opportunistic profile anymore, it's back to
@@ -932,13 +949,15 @@ public class ONSProfileSelector {
         pw.println(TAG + ":");
         pw.println("  subId: " + mSubId);
         pw.println("  mCurrentDataSubId: " + mCurrentDataSubId);
+        List<SubscriptionInfo> oppSubInfos = getOppSubscriptionInfos();
         pw.println("  mOppSubscriptionInfos: " + (
-                mOppSubscriptionInfos == null || mOppSubscriptionInfos.isEmpty() ? "[]"
-                        : Arrays.toString(mOppSubscriptionInfos.stream().map(
+                oppSubInfos == null || oppSubInfos.isEmpty() ? "[]"
+                        : Arrays.toString(oppSubInfos.stream().map(
                                 SubscriptionInfo::getSubscriptionId).toArray())));
+        List<SubscriptionInfo> standaloneOppSubInfos = getStandaloneOppSubsInfos();
         pw.println("  mStandaloneOppSubInfos: " + (
-                mStandaloneOppSubInfos == null || mStandaloneOppSubInfos.isEmpty() ? "[]"
-                        : Arrays.toString(mStandaloneOppSubInfos.stream().map(
+                standaloneOppSubInfos == null || standaloneOppSubInfos.isEmpty() ? "[]"
+                        : Arrays.toString(standaloneOppSubInfos.stream().map(
                                 SubscriptionInfo::getSubscriptionId).toArray())));
         pw.println("  mAvailableNetworkInfos:");
         if (mAvailableNetworkInfos != null && !mAvailableNetworkInfos.isEmpty()) {
