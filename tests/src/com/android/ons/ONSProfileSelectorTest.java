@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.ServiceManager;
 import android.telephony.AvailableNetworkInfo;
@@ -183,7 +184,18 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
 
     // Set mock expectations before invoking.
     private void initONSProfileSelector() {
-        mONSProfileSelector = new MyONSProfileSelector(mContext, mONSProfileSelectionCallback);
+        runUntilReady(
+                () -> {
+                    new HandlerThread("ONSProfileSelectorTest") {
+                        @Override
+                        protected void onLooperPrepared() {
+                            mONSProfileSelector =
+                                    new MyONSProfileSelector(
+                                            mContext, mONSProfileSelectionCallback);
+                            setReady(true);
+                        }
+                    }.start();
+                });
     }
 
     private void runUntilReady(Runnable task) {
