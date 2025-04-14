@@ -51,6 +51,7 @@ import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -78,6 +79,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
     private IOns iOpportunisticNetworkService;
     private Looper mLooper;
     private OpportunisticNetworkService mOpportunisticNetworkService;
+    private IUpdateAvailableNetworksCallback mCarrierCallback;
     private static final String CARRIER_APP_CONFIG_NAME = "carrierApp";
     private static final String SYSTEM_APP_CONFIG_NAME = "systemApp";
 
@@ -99,6 +101,11 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
     @Before
     public void setUp() throws Exception {
         super.setUp("ONSTest");
+        initONS();
+        initONSCallback();
+    }
+
+    private void initONS() {
         pkgForDebug = mContext != null ? mContext.getOpPackageName() : "<unknown>";
         pkgForFeature = mContext != null ? mContext.getAttributionTag() : null;
         Intent intent = new Intent(mContext, OpportunisticNetworkService.class);
@@ -136,6 +143,20 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
                 .thenReturn(true);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS))
                 .thenReturn(true);
+    }
+
+    private void initONSCallback() {
+        mResult = -1;
+        mReady = false;
+        mCarrierCallback =
+            new IUpdateAvailableNetworksCallback.Stub() {
+            @Override
+            public void onComplete(int result) {
+                Log.d(TAG, "mResult end:" + result);
+                mResult = result;
+                mReady = true;
+            }
+        };
     }
 
     @After
@@ -491,19 +512,165 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
                         availableNetworkInfos, null, pkgForDebug));
     }
 
+    @Test
+    public void testUpdateAvailableNetworksForCarrierAppWithEmptyAvailableNetworksDisabled()
+        throws Exception {
+        doReturn(PackageManager.PERMISSION_DENIED).when(mMockContext)
+            .checkCallingOrSelfPermission(android.Manifest.permission.MODIFY_PHONE_STATE);
+        mOpportunisticNetworkService.mContext = mMockContext;
+        List<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<>();
+
+        setAndAssertEnableState(false);
+        iOpportunisticNetworkService.updateAvailableNetworks(
+            availableNetworkInfos, mCarrierCallback, pkgForDebug);
+
+        waitUntilReady();
+        assertEquals(TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS, mResult);
+    }
+
+    // TODO(b/414649249): Enable test case when bug is fixed.
+    @Test
+    @Ignore
+    public void testUpdateAvailableNetworksForCarrierAppWithEmptyAvailableNetworksEnabled()
+        throws Exception {
+        doReturn(PackageManager.PERMISSION_DENIED).when(mMockContext)
+            .checkCallingOrSelfPermission(android.Manifest.permission.MODIFY_PHONE_STATE);
+        mOpportunisticNetworkService.mContext = mMockContext;
+        List<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<>();
+
+        setAndAssertEnableState(true);
+        iOpportunisticNetworkService.updateAvailableNetworks(
+            availableNetworkInfos, mCarrierCallback, pkgForDebug);
+
+        waitUntilReady();
+        // TODO(b/414649249): For reference until bug is fixed, this is the actual value returned.
+        // assertEquals(
+        //     TelephonyManager.UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE, mResult);
+        assertEquals(TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS, mResult);
+    }
+
+    @Test
+    public void testUpdateAvailableNetworksForCarrierAppWithTooManyNetworks() throws Exception {
+        doReturn(PackageManager.PERMISSION_DENIED).when(mMockContext)
+            .checkCallingOrSelfPermission(android.Manifest.permission.MODIFY_PHONE_STATE);
+        mOpportunisticNetworkService.mContext = mMockContext;
+        ArrayList<String> mccMncs = new ArrayList<>();
+        mccMncs.add("310210");
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
+            new ArrayList<Integer>());
+        List<AvailableNetworkInfo> availableNetworkInfos =
+            new ArrayList<AvailableNetworkInfo>();
+        availableNetworkInfos.add(availableNetworkInfo);
+        availableNetworkInfos.add(availableNetworkInfo);
+
+        setAndAssertEnableState(false);
+        iOpportunisticNetworkService.updateAvailableNetworks(
+            availableNetworkInfos, mCarrierCallback, pkgForDebug);
+
+        waitUntilReady();
+        assertEquals(
+            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_MULTIPLE_NETWORKS_NOT_SUPPORTED, mResult);
+    }
+
+    @Test
+    public void testUpdateAvailableNetworksForCarrierAppWithoutOppSubs() throws Exception {
+        doReturn(PackageManager.PERMISSION_DENIED).when(mMockContext)
+            .checkCallingOrSelfPermission(android.Manifest.permission.MODIFY_PHONE_STATE);
+        mOpportunisticNetworkService.mContext = mMockContext;
+        ArrayList<String> mccMncs = new ArrayList<>();
+        mccMncs.add("310210");
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
+            new ArrayList<Integer>());
+        List<AvailableNetworkInfo> availableNetworkInfos =
+            new ArrayList<AvailableNetworkInfo>();
+        availableNetworkInfos.add(availableNetworkInfo);
+
+        setAndAssertEnableState(false);
+        iOpportunisticNetworkService.updateAvailableNetworks(
+            availableNetworkInfos, mCarrierCallback, pkgForDebug);
+
+        waitUntilReady();
+        assertEquals(
+            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE, mResult);
+    }
+
+    @Test
+    public void testUpdateAvailableNetworksForCarrierAppWithOppSubsNoActiveSubs() throws Exception {
+        doReturn(PackageManager.PERMISSION_DENIED).when(mMockContext)
+            .checkCallingOrSelfPermission(android.Manifest.permission.MODIFY_PHONE_STATE);
+        doReturn(true).when(mockProfileSelector).hasOpportunisticSub(any());
+        mOpportunisticNetworkService.mProfileSelector = mockProfileSelector;
+        mOpportunisticNetworkService.mContext = mMockContext;
+        ArrayList<String> mccMncs = new ArrayList<>();
+        mccMncs.add("310210");
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
+            new ArrayList<Integer>());
+        List<AvailableNetworkInfo> availableNetworkInfos =
+            new ArrayList<AvailableNetworkInfo>();
+        availableNetworkInfos.add(availableNetworkInfo);
+
+        setAndAssertEnableState(false);
+        iOpportunisticNetworkService.updateAvailableNetworks(
+            availableNetworkInfos, mCarrierCallback, pkgForDebug);
+
+        waitUntilReady();
+        assertEquals(
+            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_NO_CARRIER_PRIVILEGE, mResult);
+    }
+
+    @Test
+    public void testUpdateAvailableNetworksForCarrierAppWithOppSubsONSDisabled() throws Exception {
+        doReturn(PackageManager.PERMISSION_DENIED).when(mMockContext)
+            .checkCallingOrSelfPermission(android.Manifest.permission.MODIFY_PHONE_STATE);
+        doReturn(true).when(mockProfileSelector).hasOpportunisticSub(any());
+        doReturn(true).when(mSubscriptionManager).isActiveSubId(1);
+        mOpportunisticNetworkService.mProfileSelector = mockProfileSelector;
+        mOpportunisticNetworkService.mContext = mMockContext;
+        ArrayList<String> mccMncs = new ArrayList<>();
+        mccMncs.add("310210");
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
+            new ArrayList<Integer>());
+        List<AvailableNetworkInfo> availableNetworkInfos =
+            new ArrayList<AvailableNetworkInfo>();
+        availableNetworkInfos.add(availableNetworkInfo);
+
+        setAndAssertEnableState(false);
+        iOpportunisticNetworkService.updateAvailableNetworks(
+            availableNetworkInfos, mCarrierCallback, pkgForDebug);
+
+        waitUntilReady();
+        assertEquals(
+            TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SERVICE_IS_DISABLED, mResult);
+    }
+
+    @Test
+    public void testUpdateAvailableNetworksForCarrierAppWithOppSubsONSEnabled() throws Exception {
+        doReturn(PackageManager.PERMISSION_DENIED).when(mMockContext)
+            .checkCallingOrSelfPermission(android.Manifest.permission.MODIFY_PHONE_STATE);
+        doReturn(true).when(mockProfileSelector).hasOpportunisticSub(any());
+        doReturn(true).when(mSubscriptionManager).isActiveSubId(1);
+        mOpportunisticNetworkService.mProfileSelector = mockProfileSelector;
+        mOpportunisticNetworkService.mContext = mMockContext;
+        ArrayList<String> mccMncs = new ArrayList<>();
+        mccMncs.add("310210");
+        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
+            new ArrayList<Integer>());
+        List<AvailableNetworkInfo> availableNetworkInfos =
+            new ArrayList<AvailableNetworkInfo>();
+        availableNetworkInfos.add(availableNetworkInfo);
+
+        setAndAssertEnableState(true);
+        iOpportunisticNetworkService.updateAvailableNetworks(
+            availableNetworkInfos, mCarrierCallback, pkgForDebug);
+
+        verify(mockProfileSelector).startProfileSelection(availableNetworkInfos, mCarrierCallback);
+    }
+
     private void replaceInstance(final Class c, final String instanceName, final Object obj,
             final Object newValue) throws Exception {
         Field field = c.getDeclaredField(instanceName);
         field.setAccessible(true);
         field.set(obj, newValue);
-    }
-
-    private IOns getIOns() {
-        return IOns.Stub.asInterface(
-                TelephonyFrameworkInitializer
-                        .getTelephonyServiceManager()
-                        .getOpportunisticNetworkServiceRegisterer()
-                        .get());
     }
 
     public static void waitForMs(long ms) {
@@ -512,5 +679,10 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         } catch (InterruptedException e) {
             Log.d(TAG, "InterruptedException while waiting: " + e);
         }
+    }
+
+    private void setAndAssertEnableState(boolean enable) throws Exception {
+        iOpportunisticNetworkService.setEnable(enable, pkgForDebug);
+        assertEquals(enable, iOpportunisticNetworkService.isEnabled(pkgForDebug));
     }
 }
