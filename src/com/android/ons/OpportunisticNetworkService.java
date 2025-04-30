@@ -839,7 +839,7 @@ public class OpportunisticNetworkService extends Service {
     }
 
     private boolean canManageSubscription(SubscriptionInfo subInfo, String packageName) {
-        if (Flags.hsumPackageManager() && UserManager.isHeadlessSystemUserMode()) {
+        if (UserManager.isHeadlessSystemUserMode()) {
             return mSubscriptionManager.canManageSubscriptionAsUser(subInfo, packageName,
                     UserHandle.of(ActivityManager.getCurrentUser()));
         } else {
