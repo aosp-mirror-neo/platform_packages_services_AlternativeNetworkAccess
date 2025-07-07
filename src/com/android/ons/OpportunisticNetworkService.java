@@ -740,9 +740,12 @@ public class OpportunisticNetworkService extends Service {
             try {
                 SubscriptionInfo subscriptionInfo = mSubscriptionManager.getDefaultVoiceSubscriptionInfo();
                 if (subscriptionInfo != null) {
-                    ONSConfigInput onsConfigInput = new ONSConfigInput(availableNetworks,
-                            callbackStub, subscriptionInfo.getSubscriptionId(),
-                            availableNetworks.getFirst().getSubId());
+                    ONSConfigInput onsConfigInput =
+                            new ONSConfigInput(
+                                    availableNetworks,
+                                    callbackStub,
+                                    availableNetworks.getFirst().getSubId() /* preferredDataSub */,
+                                    subscriptionInfo.getSubscriptionId() /* primarySub */);
                     setCarrierAppConfig(onsConfigInput);
                 }
                 // standalone opportunistic subscription should be handled in priority.
