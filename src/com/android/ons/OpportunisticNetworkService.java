@@ -50,6 +50,7 @@ import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyFrameworkInitializer;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.IOns;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
@@ -57,6 +58,7 @@ import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.flags.Flags;
+
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -998,8 +1000,15 @@ public class OpportunisticNetworkService extends Service {
         try {
             pw.println(OpportunisticNetworkService.class.getSimpleName() + ":");
             pw.println("  mIsEnabled = " + getEnableState());
-            mONSProfileActivator.dump(fd, pw, args);
-            mProfileSelector.dump(fd, pw, args);
+            // Add null checks to prevent a race condition crash in the `dump` method.
+            // A test is needed to verify the fix by calling `dump` before initialization
+            // is complete, ensuring no NPE
+            if (mONSProfileActivator != null) {
+                mONSProfileActivator.dump(fd, pw, args);
+            }
+            if (mProfileSelector != null) {
+                mProfileSelector.dump(fd, pw, args);
+            }
         } finally {
             Binder.restoreCallingIdentity(token);
         }
