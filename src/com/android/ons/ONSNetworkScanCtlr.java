@@ -38,6 +38,7 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.util.ArrayUtils;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -311,15 +312,15 @@ public class ONSNetworkScanCtlr {
             } else {
                 for (RadioAccessSpecifier radioAccessSpecifier : radioAccessSpecifiers) {
                     int radioAccessNetworkType = radioAccessSpecifier.getRadioAccessNetwork();
-                    if (mIs4gScanEnabled &&
-                            radioAccessNetworkType ==
-                                    AccessNetworkConstants.AccessNetworkType.EUTRAN) {
-                        bandSet4G.addAll(Arrays.stream(radioAccessSpecifier.getBands())
-                                .boxed().toList());
-                    } else if (radioAccessNetworkType ==
-                            AccessNetworkConstants.AccessNetworkType.NGRAN) {
-                        bandSet5G.addAll(Arrays.stream(radioAccessSpecifier.getBands())
-                                .boxed().toList());
+                    int[] bands = radioAccessSpecifier.getBands();
+                    if (!ArrayUtils.isEmpty(bands)) {
+                        if (mIs4gScanEnabled && radioAccessNetworkType
+                                == AccessNetworkConstants.AccessNetworkType.EUTRAN) {
+                            bandSet4G.addAll(Arrays.stream(bands).boxed().toList());
+                        } else if (radioAccessNetworkType
+                                == AccessNetworkConstants.AccessNetworkType.NGRAN) {
+                            bandSet5G.addAll(Arrays.stream(bands).boxed().toList());
+                        }
                     }
                 }
             }
