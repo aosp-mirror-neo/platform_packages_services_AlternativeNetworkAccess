@@ -61,6 +61,16 @@ public class ONSNetworkScanCtlrTest extends ONSBaseTest {
             AccessNetworkConstants.AccessNetworkType.EUTRAN,
             new int[] {AccessNetworkConstants.EutranBand.BAND_48},
             null);
+    // RadioAccessSpecifier with 5G RAN only (no bands or channels)
+    private static final RadioAccessSpecifier TEST_5G_RAS_WITH_RAN_ONLY = new RadioAccessSpecifier(
+            AccessNetworkConstants.AccessNetworkType.NGRAN,
+            null,
+            null);
+    // RadioAccessSpecifier with 4G RAN only (no bands or channels)
+    private static final RadioAccessSpecifier TEST_4G_RAS_WITH_RAN_ONLY = new RadioAccessSpecifier(
+            AccessNetworkConstants.AccessNetworkType.EUTRAN,
+            null,
+            null);
 
     @Before
     public void setUp() throws Exception {
@@ -286,6 +296,24 @@ public class ONSNetworkScanCtlrTest extends ONSBaseTest {
         assertEquals(networkScanRequest.getPlmns().get(0), "310210");
         assertEquals(radioAccessSpecifiers.length, 1);
         assertEquals(radioAccessSpecifiers[0], TEST_5G_RAS);
+    }
+
+    @Test
+    public void testCreateNetworkScanRequest_with4gAnd5gRASWithRanOnly_4gScanEnabled() {
+        initONSNetworkScanCtrl();
+        mONSNetworkScanCtlr.setIs4gScanEnabled(true);
+
+        NetworkScanRequest networkScanRequest = createNetworkScanRequest(
+                new ArrayList<>(
+                        Arrays.asList(TEST_5G_RAS_WITH_RAN_ONLY, TEST_4G_RAS_WITH_RAN_ONLY)));
+        RadioAccessSpecifier[] radioAccessSpecifiers = networkScanRequest.getSpecifiers();
+
+        assertEquals(networkScanRequest.getSearchPeriodicity(), SEARCH_PERIODICITY);
+        assertEquals(networkScanRequest.getPlmns().size(), 1);
+        assertEquals(networkScanRequest.getPlmns().get(0), "310210");
+        assertEquals(radioAccessSpecifiers.length, 2);
+        assertEquals(radioAccessSpecifiers[0], ONSNetworkScanCtlr.DEFAULT_5G_RAS);
+        assertEquals(radioAccessSpecifiers[1], ONSNetworkScanCtlr.DEFAULT_4G_RAS);
     }
 
     private NetworkScanRequest createNetworkScanRequest(ArrayList<RadioAccessSpecifier> ras) {
