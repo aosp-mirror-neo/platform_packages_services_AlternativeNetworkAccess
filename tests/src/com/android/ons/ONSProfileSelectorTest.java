@@ -15,13 +15,23 @@
  */
 package com.android.ons;
 
-import static org.mockito.Mockito.*;
+import static android.telephony.AvailableNetworkInfo.PRIORITY_HIGH;
+import static android.telephony.AvailableNetworkInfo.PRIORITY_MED;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.verify;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
 import android.os.IBinder;
-import android.os.Looper;
 import android.os.ServiceManager;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.CellIdentityLte;
@@ -37,27 +47,28 @@ import android.telephony.UiccPortInfo;
 import android.telephony.euicc.EuiccManager;
 import android.util.Log;
 
+import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.ISub;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.stubbing.Answer;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public class ONSProfileSelectorTest extends ONSBaseTest {
 
     private MyONSProfileSelector mONSProfileSelector;
-    private boolean testFailed;
-    private boolean mCallbackInvoked;
-    private int mDataSubId;
     private int mResult;
     @Mock
     EuiccManager mMockEuiccManager;
@@ -71,16 +82,38 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
     IBinder mISubBinderMock;
     @Mock
     SubscriptionInfo mSubInfo;
-    private Looper mLooper;
     private static final String TAG = "ONSProfileSelectorTest";
 
-    MyONSProfileSelector.ONSProfileSelectionCallback mONSProfileSelectionCallback =
-        new MyONSProfileSelector.ONSProfileSelectionCallback() {
-            public void onProfileSelectionDone() {
-                mCallbackInvoked = true;
-                setReady(true);
-            }
-        };
+    private final ONSProfileSelector.ONSProfileSelectionCallback mONSProfileSelectionCallback =
+            new ONSProfileSelector.ONSProfileSelectionCallback() {
+                public void onProfileSelectionDone() {
+                    setReady(true);
+                }
+            };
+
+    private final IUpdateAvailableNetworksCallback mUpdateAvailableNetworksCallback =
+            new IUpdateAvailableNetworksCallback.Stub() {
+                @Override
+                public void onComplete(int result) {
+                    Log.d(TAG, "mResult end:" + result);
+                    mResult = result;
+                    setReady(true);
+                }
+            };
+
+    private final ISetOpportunisticDataCallback mSetOppDataCallback =
+            new ISetOpportunisticDataCallback.Stub() {
+                @Override
+                public void onComplete(int result) {
+                    Log.d(TAG, "mResult end:" + result);
+                    mResult = result;
+                    setReady(true);
+                }
+            };
+    Answer<Void> mStartFastNetworkScanReceived = invocation -> {
+        setReady(true);
+        return null;
+    };
 
     public class MyONSProfileSelector extends ONSProfileSelector {
 
@@ -138,7 +171,6 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
     @Before
     public void setUp() throws Exception {
         super.setUp("ONSTest");
-        mLooper = null;
         MockitoAnnotations.initMocks(this);
         addISubService();
     }
@@ -147,908 +179,697 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
     public void tearDown() throws Exception {
         removeISubService();
         super.tearDown();
-        if (mLooper != null) {
-            mLooper.quit();
-            mLooper.getThread().join();
-        }
     }
 
+    // Set mock expectations before invoking.
+    private void initONSProfileSelector() {
+        mONSProfileSelector = new MyONSProfileSelector(mContext, mONSProfileSelectionCallback);
+    }
+
+    private void runUntilReady(Runnable task) {
+        mResult = -1;
+        setReady(false);
+        task.run();
+        waitUntilReady();
+        assertTrue(mReady);
+    }
+
+    private void verifySetPreferredDataSubIdWithResult(int subId, boolean validation, int result) {
+        ArgumentCaptor<Consumer<Integer>> callbackCaptor = ArgumentCaptor.forClass(Consumer.class);
+        verify(mSubscriptionManager)
+                .setPreferredDataSubscriptionId(
+                        eq(subId), eq(validation), any(), callbackCaptor.capture());
+        Consumer<Integer> callback = callbackCaptor.getAllValues().get(0);
+        assertNotNull(callback);
+        callback.accept(result);
+    }
 
     @Test
     public void testStartProfileSelectionWithNoOpportunisticSub() {
-        List<CellInfo> results2 = new ArrayList<CellInfo>();
-        CellIdentityLte cellIdentityLte = new CellIdentityLte(310, 210, 1, 1, 1);
-        CellInfoLte cellInfoLte = new CellInfoLte();
-        cellInfoLte.setCellIdentity(cellIdentityLte);
-        results2.add((CellInfo) cellInfoLte);
-        ArrayList<String> mccMncs = new ArrayList<>();
-        mccMncs.add("310210");
-        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(1, 1, mccMncs,
-            new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
-        availableNetworkInfos.add(availableNetworkInfo);
+        List<String> mccMncs = List.of("310210");
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+                new ArrayList<>(
+                        List.of(
+                                new AvailableNetworkInfo(
+                                        1, PRIORITY_HIGH, mccMncs, new ArrayList<Integer>())));
+        addUiccCardInfo(List.of(new UiccPortInfo("", 1, 1, false)));
+        addOppSubscriptions(List.of());
+        doReturn(true).when(mONSNetworkScanCtlr).startFastNetworkScan(any());
+        initONSProfileSelector();
 
-        UiccPortInfo uiccPortInfo = new UiccPortInfo("", 1, 1, false);
-        ArrayList<UiccPortInfo> uiccPortInfoList = new ArrayList<>();
-        uiccPortInfoList.add(uiccPortInfo);
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.mTelephonyManager = mMockTelephonyManager;
+                    mONSProfileSelector.mEuiccManager = mMockEuiccManager;
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.startProfileSelection(
+                            availableNetworkInfos, mUpdateAvailableNetworksCallback);
+                });
 
-        UiccCardInfo uiccCardInfo = new UiccCardInfo(true, 1, "", 0, false, true, uiccPortInfoList);
-        ArrayList<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
-        uiccCardInfoList.add(uiccCardInfo);
-
-        doReturn(uiccCardInfoList).when(mMockTelephonyManager).getUiccCardsInfo();
-        doReturn(mMockEuiccManager).when(mMockEuiccManager).createForCardId(1);
-        doReturn(true).when(mMockEuiccManager).isSimPortAvailable(1);
-
-        IUpdateAvailableNetworksCallback mCallback = new IUpdateAvailableNetworksCallback.Stub() {
-            @Override
-            public void onComplete(int result) {
-                Log.d(TAG, "mResult end:" + result);
-                mResult = result;
-            }
-        };
-
-        mResult = -1;
-        mReady = false;
-        mCallbackInvoked = false;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                doReturn(true).when(mONSNetworkScanCtlr).startFastNetworkScan(any());
-                doReturn(new ArrayList<>()).when(mSubscriptionManager)
-                    .getOpportunisticSubscriptions();
-                mONSProfileSelector = new MyONSProfileSelector(mContext,
-                    mONSProfileSelectionCallback);
-                mONSProfileSelector.mTelephonyManager = mMockTelephonyManager;
-                mONSProfileSelector.mEuiccManager = mMockEuiccManager;
-                mONSProfileSelector.updateOppSubs();
-                mONSProfileSelector.startProfileSelection(availableNetworkInfos, mCallback);
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
-
-        // Wait till initialization is complete.
-        waitUntilReady();
-        mReady = false;
-
-        // Testing startProfileSelection without any opportunistic data.
-        // should not get any callback invocation.
-        waitUntilReady(100);
         assertEquals(
                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE, mResult);
-        assertFalse(mCallbackInvoked);
     }
 
     @Test
     public void testStartProfileSelectionSuccess() {
         int subId = 5;
-        List<SubscriptionInfo> activeSubscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        List<SubscriptionInfo> oppSubscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo1 = new SubscriptionInfo(subId, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", true, null, "1", 1, true, null, false, 1, 1, 1,
-                null, null, false, 0);
-        SubscriptionInfo subscriptionInfo2 = new SubscriptionInfo(6, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "211", "", true, null, "1", 1, false, null, false, 1, 1, 1,
-                null, null, false, 0);
-        oppSubscriptionInfoList.add(subscriptionInfo1);
-        activeSubscriptionInfoList.add(subscriptionInfo1);
-        activeSubscriptionInfoList.add(subscriptionInfo2);
+        SubscriptionInfo subscriptionInfo1 =
+                new SubscriptionInfo.Builder()
+                        .setId(subId)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1)
+                        .setPortIndex(1)
+                        .build();
+        SubscriptionInfo subscriptionInfo2 =
+                new SubscriptionInfo.Builder()
+                        .setId(6)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("211")
+                        .setEmbedded(true)
+                        .setOpportunistic(false)
+                        .setCarrierId(1)
+                        .setPortIndex(0)
+                        .build();
+        addActiveSubscriptions(List.of(subscriptionInfo1, subscriptionInfo2));
+        addOppSubscriptions(List.of(subscriptionInfo1));
+        ArrayList<CellInfo> results = new ArrayList<>(List.of(createCellInfoLte(310, 210)));
+        List<String> mccMncs = List.of("310210");
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+                new ArrayList<>(
+                        List.of(
+                                new AvailableNetworkInfo(
+                                        subId, PRIORITY_HIGH, mccMncs, List.of())));
+        doAnswer(mStartFastNetworkScanReceived)
+                .when(mONSNetworkScanCtlr)
+                .startFastNetworkScan(eq(availableNetworkInfos));
+        initONSProfileSelector();
 
-        List<CellInfo> results2 = new ArrayList<CellInfo>();
-        CellIdentityLte cellIdentityLte = new CellIdentityLte(310, 210, 1, 1, 1);
-        CellInfoLte cellInfoLte = new CellInfoLte();
-        cellInfoLte.setCellIdentity(cellIdentityLte);
-        results2.add((CellInfo) cellInfoLte);
-        ArrayList<String> mccMncs = new ArrayList<>();
-        mccMncs.add("310210");
-        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(subId, 1, mccMncs,
-            new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
-        availableNetworkInfos.add(availableNetworkInfo);
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.startProfileSelection(
+                            availableNetworkInfos, mUpdateAvailableNetworksCallback);
+                });
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.mNetworkAvailableCallBackCpy.onNetworkAvailability(results);
+                });
 
-        IUpdateAvailableNetworksCallback mCallback = new IUpdateAvailableNetworksCallback.Stub() {
-            @Override
-            public void onComplete(int result) {
-                mResult = result;
-            }
-        };
-
-        mResult = -1;
-        mReady = false;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                doReturn(subscriptionInfo1).when(mSubscriptionManager)
-                        .getActiveSubscriptionInfo(subId);
-                doReturn(oppSubscriptionInfoList).when(mSubscriptionManager)
-                    .getOpportunisticSubscriptions();
-                doReturn(activeSubscriptionInfoList).when(mSubscriptionManager)
-                        .getActiveSubscriptionInfoList();
-                doReturn(activeSubscriptionInfoList).when(mSubscriptionManager)
-                        .getCompleteActiveSubscriptionInfoList();
-                doReturn(true).when(mSubscriptionManager).isActiveSubId(subId);
-                doReturn(true).when(mSubscriptionBoundTelephonyManager).enableModemForSlot(
-                    anyInt(), anyBoolean());
-                mONSProfileSelector = new MyONSProfileSelector(mContext,
-                    new MyONSProfileSelector.ONSProfileSelectionCallback() {
-                        public void onProfileSelectionDone() {
-                            setReady(true);
-                        }
-                    });
-                mONSProfileSelector.updateOppSubs();
-                mONSProfileSelector.startProfileSelection(availableNetworkInfos, mCallback);
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
-
-        // Wait till initialization is complete.
-        waitUntilReady();
-        mReady = false;
-        mDataSubId = -1;
-
-        // Testing startProfileSelection with opportunistic sub.
-        // On success onProfileSelectionDone must get invoked.
-        assertFalse(mReady);
-        waitForMs(500);
-        mONSProfileSelector.mNetworkAvailableCallBackCpy.onNetworkAvailability(results2);
-        Intent callbackIntent = new Intent(MyONSProfileSelector.ACTION_SUB_SWITCH);
-        callbackIntent.putExtra("sequenceId", 1);
-        callbackIntent.putExtra("subId", subId);
-        waitUntilReady();
         assertEquals(TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS, mResult);
-        assertTrue(mReady);
+    }
+
+    private CellInfo createCellInfoLte(int mcc, int mnc) {
+        CellInfoLte cellInfo = new CellInfoLte();
+        cellInfo.setCellIdentity(
+                new CellIdentityLte(mcc, mnc, 1 /* ci */, 1 /* pci */, 1 /* tac */));
+        return cellInfo;
+    }
+
+    private void addActiveSubscriptions(List<SubscriptionInfo> subInfos) {
+        doReturn(subInfos).when(mSubscriptionManager).getActiveSubscriptionInfoList(anyBoolean());
+        doReturn(subInfos).when(mSubscriptionManager).getCompleteActiveSubscriptionInfoList();
+        subInfos.forEach(
+                subInfo -> {
+                    int subId = subInfo.getSubscriptionId();
+                    int slotIndex = subInfo.getSimSlotIndex();
+                    doReturn(true).when(mSubscriptionManager).isActiveSubId(subId);
+                    doReturn(subInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(subId);
+                    doReturn(true)
+                            .when(mSubscriptionBoundTelephonyManager)
+                            .enableModemForSlot(eq(slotIndex), anyBoolean());
+                });
+    }
+
+    private void addOppSubscriptions(List<SubscriptionInfo> oppSubList) {
+        doReturn(oppSubList).when(mSubscriptionManager).getOpportunisticSubscriptions();
+    }
+
+    private void addUiccCardInfo(List<UiccPortInfo> portInfoList) {
+        UiccCardInfo cardInfo = new UiccCardInfo(true, 1, "", 0, false, true, portInfoList);
+        doReturn(List.of(cardInfo)).when(mMockTelephonyManager).getUiccCardsInfo();
+        doReturn(mMockEuiccManager).when(mMockEuiccManager).createForCardId(1);
+
+        portInfoList.forEach(
+                portInfo ->
+                        doReturn(true)
+                                .when(mMockEuiccManager)
+                                .isSimPortAvailable(portInfo.getPortIndex()));
     }
 
     @Test
     public void testStartProfileSelectionWithDifferentPrioritySubInfo() {
-        int PRIORITY_HIGH = 1;
-        int PRIORITY_MED = 2;
+        SubscriptionInfo subscriptionInfo =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1)
+                        .setPortIndex(0)
+                        .build();
+        SubscriptionInfo subscriptionInfo_2 =
+                new SubscriptionInfo.Builder()
+                        .setId(8)
+                        .setSimSlotIndex(1)
+                        .setMcc("311")
+                        .setMnc("480")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1)
+                        .setPortIndex(1)
+                        .build();
+        ArrayList<CellInfo> results =
+                new ArrayList<>(List.of(createCellInfoLte(310, 210), createCellInfoLte(311, 480)));
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+                new ArrayList<>(
+                        List.of(
+                                new AvailableNetworkInfo(
+                                        5, PRIORITY_MED, List.of("310210"), List.of()),
+                                new AvailableNetworkInfo(
+                                        8, PRIORITY_HIGH, List.of("311480"), List.of())));
+        addActiveSubscriptions(List.of(subscriptionInfo, subscriptionInfo_2));
+        addOppSubscriptions(List.of(subscriptionInfo, subscriptionInfo_2));
+        doAnswer(mStartFastNetworkScanReceived)
+                .when(mONSNetworkScanCtlr)
+                .startFastNetworkScan(eq(availableNetworkInfos));
+        initONSProfileSelector();
 
-        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", true, null, "1", 1, true, null, false, 1, 1, 1,
-                null, null, false, 0);
-        subscriptionInfoList.add(subscriptionInfo);
-        SubscriptionInfo subscriptionInfo_2 = new SubscriptionInfo(8, "", 1, "Vzw", "Vzw", 1, 1,
-                "456", 1, null, "311", "480", "", true, null, "1", 1, true, null, false, 1, 1, 1,
-                null, null, false, 1);
-        subscriptionInfoList.add(subscriptionInfo_2);
-        doReturn(subscriptionInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(5);
-        doReturn(subscriptionInfo_2).when(mSubscriptionManager).getActiveSubscriptionInfo(8);
-        doReturn(subscriptionInfoList).when(mSubscriptionManager)
-                .getCompleteActiveSubscriptionInfoList();
-        doReturn(subscriptionInfoList).when(mSubscriptionManager).getOpportunisticSubscriptions();
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.startProfileSelection(
+                            availableNetworkInfos, mUpdateAvailableNetworksCallback);
+                });
+        int bestSubId = mONSProfileSelector.retrieveBestSubscription(results);
+        assertEquals(8, bestSubId);
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.mNetworkAvailableCallBackCpy.onNetworkAvailability(results);
+                });
 
-        List<CellInfo> results2 = new ArrayList<CellInfo>();
-        CellIdentityLte cellIdentityLte = new CellIdentityLte(310, 210, 1, 1, 1);
-        CellInfoLte cellInfoLte = new CellInfoLte();
-        cellInfoLte.setCellIdentity(cellIdentityLte);
-        results2.add((CellInfo) cellInfoLte);
-        CellIdentityLte cellIdentityLte_2 = new CellIdentityLte(311, 480, 1, 1, 1);
-        CellInfoLte cellInfoLte_2 = new CellInfoLte();
-        cellInfoLte_2.setCellIdentity(cellIdentityLte_2);
-        results2.add((CellInfo) cellInfoLte_2);
-
-        ArrayList<String> mccMncs = new ArrayList<>();
-        mccMncs.add("310210");
-        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(5, PRIORITY_MED,
-                mccMncs, new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<>();
-        availableNetworkInfos.add(availableNetworkInfo);
-        ArrayList<String> mccMncs_2 = new ArrayList<>();
-        mccMncs_2.add("311480");
-        AvailableNetworkInfo availableNetworkInfo_2 = new AvailableNetworkInfo(8, PRIORITY_HIGH,
-                mccMncs_2, new ArrayList<Integer>());
-        availableNetworkInfos.add(availableNetworkInfo_2);
-
-        IUpdateAvailableNetworksCallback mCallback = new IUpdateAvailableNetworksCallback.Stub() {
-            @Override
-            public void onComplete(int result) {
-                mResult = result;
-            }
-        };
-
-        mResult = -1;
-        mReady = false;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                doReturn(true).when(mSubscriptionManager).isActiveSubId(anyInt());
-                doReturn(true).when(mSubscriptionBoundTelephonyManager).enableModemForSlot(
-                        anyInt(), anyBoolean());
-                mONSProfileSelector = new MyONSProfileSelector(mContext,
-                        new MyONSProfileSelector.ONSProfileSelectionCallback() {
-                            public void onProfileSelectionDone() {
-                                setReady(true);
-                            }
-                        });
-                mONSProfileSelector.updateOppSubs();
-                mONSProfileSelector.startProfileSelection(availableNetworkInfos, mCallback);
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
-        waitUntilReady();
-        waitForMs(500);
-        // get high priority subId
-        int retrieveSubId = mONSProfileSelector.retrieveBestSubscription(results2);
-        mONSProfileSelector.mNetworkAvailableCallBackCpy.onNetworkAvailability(results2);
-        assertEquals(8, retrieveSubId);
         assertEquals(TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS, mResult);
     }
 
     @Test
     public void testStartProfileSelectionWithActivePrimarySimOnESim() {
-        List<SubscriptionInfo> opportunisticSubscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        List<SubscriptionInfo> activeSubscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo1 = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", true, null, "1", 1, true, null, false, 1839, 1,
-                1, null, null, false, 1);
-        SubscriptionInfo subscriptionInfo2 = new SubscriptionInfo(6, "", 1, "TMO", "TMO", 1, 1,
-                "456", 1, null, "310", "211", "", true, null, "1", 1, false, null, false, 1839, 1,
-                1, null, null, false, 2);
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+                new ArrayList<>(
+                        List.of(
+                                new AvailableNetworkInfo(
+                                        5,
+                                        PRIORITY_MED,
+                                        List.of("310210"),
+                                        new ArrayList<Integer>())));
+        addActiveSubscriptions(
+                List.of(
+                        new SubscriptionInfo.Builder()
+                                .setId(5)
+                                .setSimSlotIndex(1)
+                                .setMcc("310")
+                                .setMnc("210")
+                                .setEmbedded(true)
+                                .setOpportunistic(false)
+                                .setCarrierId(1839)
+                                .setPortIndex(1)
+                                .build(),
+                        new SubscriptionInfo.Builder()
+                                .setId(6)
+                                .setSimSlotIndex(1)
+                                .setMcc("310")
+                                .setMnc("211")
+                                .setEmbedded(true)
+                                .setOpportunistic(true)
+                                .setCarrierId(1839)
+                                .setPortIndex(2)
+                                .build()));
+        addOppSubscriptions(List.of());
+        addUiccCardInfo(
+                List.of(new UiccPortInfo("1", 0, 0, false), new UiccPortInfo("2", 1, 1, true)));
+        initONSProfileSelector();
 
-        activeSubscriptionInfoList.add(subscriptionInfo1);
-        activeSubscriptionInfoList.add(subscriptionInfo2);
-        doReturn(subscriptionInfo1).when(mSubscriptionManager).getActiveSubscriptionInfo(5);
-        doReturn(subscriptionInfo2).when(mSubscriptionManager).getActiveSubscriptionInfo(6);
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.mTelephonyManager = mMockTelephonyManager;
+                    mONSProfileSelector.mEuiccManager = mMockEuiccManager;
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.startProfileSelection(
+                            availableNetworkInfos, mUpdateAvailableNetworksCallback);
+                });
 
-        ArrayList<String> mccMncs = new ArrayList<>();
-        mccMncs.add("310210");
-        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(5, 2, mccMncs,
-            new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
-        availableNetworkInfos.add(availableNetworkInfo);
-
-        ArrayList<UiccPortInfo> uiccPortInfoList = new ArrayList<>();
-        uiccPortInfoList.add(new UiccPortInfo("1", 0, 0, false));
-        uiccPortInfoList.add(new UiccPortInfo("2", 1, 1, true));
-
-        UiccCardInfo uiccCardInfo = new UiccCardInfo(
-                true, 1, "1", 0, false, true, uiccPortInfoList);
-        ArrayList<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
-        uiccCardInfoList.add(uiccCardInfo);
-
-        doReturn(uiccCardInfoList).when(mMockTelephonyManager).getUiccCardsInfo();
-        doReturn(mMockEuiccManager).when(mMockEuiccManager).createForCardId(1);
-        doReturn(true).when(mMockEuiccManager).isSimPortAvailable(1);
-
-        IUpdateAvailableNetworksCallback mCallback = new IUpdateAvailableNetworksCallback.Stub() {
-            @Override
-            public void onComplete(int result) {
-                mResult = result;
-            }
-        };
-
-        mResult = -1;
-        mReady = false;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                doReturn(opportunisticSubscriptionInfoList).when(mSubscriptionManager)
-                    .getOpportunisticSubscriptions();
-                doReturn(false).when(mSubscriptionManager).isActiveSubId(anyInt());
-                doReturn(activeSubscriptionInfoList).when(mSubscriptionManager)
-                    .getActiveSubscriptionInfoList(anyBoolean());
-                doReturn(activeSubscriptionInfoList).when(mSubscriptionManager)
-                        .getActiveSubscriptionInfoList();
-                doReturn(true).when(mSubscriptionBoundTelephonyManager).enableModemForSlot(
-                        anyInt(), anyBoolean());
-                mONSProfileSelector = new MyONSProfileSelector(mContext,
-                    new MyONSProfileSelector.ONSProfileSelectionCallback() {
-                        public void onProfileSelectionDone() {
-                            setReady(true);
-                        }
-                    });
-                mONSProfileSelector.mTelephonyManager = mMockTelephonyManager;
-                mONSProfileSelector.mEuiccManager = mMockEuiccManager;
-                mONSProfileSelector.updateOppSubs();
-                mONSProfileSelector.startProfileSelection(availableNetworkInfos, mCallback);
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
-
-        // Wait till initialization is complete.
-        waitUntilReady();
-        mReady = false;
-        mDataSubId = -1;
-
-        // Testing startProfileSelection with opportunistic sub.
-        // On success onProfileSelectionDone must get invoked.
-        assertFalse(mReady);
-        waitForMs(100);
-        Intent callbackIntent = new Intent(MyONSProfileSelector.ACTION_SUB_SWITCH);
-        callbackIntent.putExtra("sequenceId", 1);
-        callbackIntent.putExtra("subId", 5);
-        waitUntilReady();
-        assertEquals(TelephonyManager.UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE,
-                mResult);
-    }
-
-    public static void waitForMs(long ms) {
-        try {
-            Thread.sleep(ms);
-        } catch (InterruptedException e) {
-            Log.d(TAG, "InterruptedException while waiting: " + e);
-        }
+        assertEquals(
+                TelephonyManager.UPDATE_AVAILABLE_NETWORKS_NO_OPPORTUNISTIC_SUB_AVAILABLE, mResult);
     }
 
     @Test
-    public void testselectProfileForDataWithNoOpportunisticSub() {
-        mReady = false;
-        doReturn(new ArrayList<>()).when(mSubscriptionManager).getOpportunisticSubscriptions();
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                mONSProfileSelector = new MyONSProfileSelector(mContext,
-                    new MyONSProfileSelector.ONSProfileSelectionCallback() {
-                        public void onProfileSelectionDone() {
-                        }
-                    });
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
+    public void testSelectProfileForDataWithNoOpportunisticSub() {
+        addOppSubscriptions(List.of());
+        initONSProfileSelector();
 
-        // Wait till initialization is complete.
-        waitUntilReady();
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.selectProfileForData(1, false, mSetOppDataCallback);
+                });
 
-        // Testing selectProfileForData with no opportunistic sub and the function should
-        // return false.
-        mONSProfileSelector.selectProfileForData(1, false, null);
+        assertEquals(
+                TelephonyManager.SET_OPPORTUNISTIC_SUB_NO_OPPORTUNISTIC_SUB_AVAILABLE, mResult);
     }
 
     @Test
-    public void testselectProfileForDataWithInActiveSub() {
-        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-            "123", 1, null, "310", "210", "", false, null, "1");
-        subscriptionInfoList.add(subscriptionInfo);
-        doReturn(subscriptionInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(5);
-        mReady = false;
-        doReturn(new ArrayList<>()).when(mSubscriptionManager).getOpportunisticSubscriptions();
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                mONSProfileSelector = new MyONSProfileSelector(mContext,
-                    new MyONSProfileSelector.ONSProfileSelectionCallback() {
-                        public void onProfileSelectionDone() {
-                        }
-                    });
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
+    public void testSelectProfileForDataWithInActiveSub() {
+        addActiveSubscriptions(
+                List.of(
+                        new SubscriptionInfo.Builder()
+                                .setId(5)
+                                .setSimSlotIndex(1)
+                                .setMcc("310")
+                                .setMnc("210")
+                                .build()));
+        addOppSubscriptions(List.of());
+        initONSProfileSelector();
 
-        // Wait till initialization is complete.
-        waitUntilReady();
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.selectProfileForData(5, false, mSetOppDataCallback);
+                });
 
-        // Testing selectProfileForData with in active sub and the function should return false.
-        mONSProfileSelector.selectProfileForData(5, false, null);
+        assertEquals(
+                TelephonyManager.SET_OPPORTUNISTIC_SUB_NO_OPPORTUNISTIC_SUB_AVAILABLE, mResult);
     }
 
     @Test
     public void testselectProfileForDataWithInvalidSubId() {
-        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-            "123", 1, null, "310", "210", "", false, null, "1");
-        subscriptionInfoList.add(subscriptionInfo);
-        doReturn(subscriptionInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(5);
-        mReady = false;
-        doReturn(subscriptionInfoList).when(mSubscriptionManager).getOpportunisticSubscriptions();
-        doNothing().when(mSubscriptionManager).setPreferredDataSubscriptionId(
-            anyInt(), anyBoolean(), any(), any());
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                mONSProfileSelector = new MyONSProfileSelector(mContext,
-                    new MyONSProfileSelector.ONSProfileSelectionCallback() {
-                        public void onProfileSelectionDone() {
-                        }
-                    });
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
+        SubscriptionInfo subscriptionInfo =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .build();
+        addActiveSubscriptions(List.of(subscriptionInfo));
+        addOppSubscriptions(List.of(subscriptionInfo));
+        initONSProfileSelector();
 
-        // Wait till initialization is complete.
-        waitUntilReady();
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.selectProfileForData(
+                            SubscriptionManager.INVALID_SUBSCRIPTION_ID,
+                            false,
+                            mSetOppDataCallback);
+                });
 
-        // Testing selectProfileForData with INVALID_SUBSCRIPTION_ID and the function should
-        // return true.
-        mONSProfileSelector.selectProfileForData(
-            SubscriptionManager.INVALID_SUBSCRIPTION_ID, false, null);
+        assertEquals(
+                TelephonyManager.SET_OPPORTUNISTIC_SUB_NO_OPPORTUNISTIC_SUB_AVAILABLE, mResult);
     }
 
     @Test
     public void testselectProfileForDataWithValidSub() {
-        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-            "123", 1, null, "310", "210", "", false, null, "1");
-        subscriptionInfoList.add(subscriptionInfo);
-        doReturn(subscriptionInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(5);
-        mReady = false;
-        doReturn(subscriptionInfoList).when(mSubscriptionManager)
-            .getActiveSubscriptionInfoList();
-        doNothing().when(mSubscriptionManager).setPreferredDataSubscriptionId(
-            anyInt(), anyBoolean(), any(), any());
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                doReturn(subscriptionInfoList).when(mSubscriptionManager)
-                    .getOpportunisticSubscriptions();
-                mONSProfileSelector = new MyONSProfileSelector(mContext,
-                    new MyONSProfileSelector.ONSProfileSelectionCallback() {
-                        public void onProfileSelectionDone() {
-                        }
-                    });
-                mONSProfileSelector.updateOppSubs();
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
+        SubscriptionInfo subscriptionInfo =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .build();
+        addActiveSubscriptions(List.of(subscriptionInfo));
+        addOppSubscriptions(List.of(subscriptionInfo));
+        initONSProfileSelector();
+        int resultFromSubMan = 42;
 
-        // Wait till initialization is complete.
-        waitUntilReady();
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.selectProfileForData(5, false, mSetOppDataCallback);
+                    verifySetPreferredDataSubIdWithResult(5, false, resultFromSubMan);
+                });
 
-        // Testing selectProfileForData with valid opportunistic sub and the function should
-        // return true.
-        mONSProfileSelector.selectProfileForData(5, false, null);
+        assertEquals(resultFromSubMan, mResult);
     }
 
     @Test
     public void testStartProfileSelectionSuccessWithSameArgumentsAgain() {
-        List<SubscriptionInfo> activeSubscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        List<SubscriptionInfo> oppSubscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo1 = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", true, null, "1", 1, true, null, false, 1, 1, 1,
-                null, null, false, 0);
-        SubscriptionInfo subscriptionInfo2 = new SubscriptionInfo(6, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "211", "", true, null, "1", 1, false, null, false, 1, 1, 1,
-                null, null, false, 0);
+        SubscriptionInfo subscriptionInfo1 =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1)
+                        .setPortIndex(0)
+                        .build();
+        SubscriptionInfo subscriptionInfo2 =
+                new SubscriptionInfo.Builder()
+                        .setId(6)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(false)
+                        .setCarrierId(1)
+                        .setPortIndex(0)
+                        .build();
+        addActiveSubscriptions(List.of(subscriptionInfo1, subscriptionInfo2));
+        addOppSubscriptions(List.of(subscriptionInfo1));
+        ArrayList<CellInfo> results = new ArrayList<>(List.of(createCellInfoLte(310, 210)));
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+                new ArrayList<>(
+                        List.of(
+                                new AvailableNetworkInfo(
+                                        5, PRIORITY_HIGH, List.of("310210"), List.of())));
+        doAnswer(mStartFastNetworkScanReceived)
+                .when(mONSNetworkScanCtlr)
+                .startFastNetworkScan(eq(availableNetworkInfos));
+        initONSProfileSelector();
 
-        oppSubscriptionInfoList.add(subscriptionInfo1);
-        doReturn(subscriptionInfo1).when(mSubscriptionManager).getActiveSubscriptionInfo(5);
-        doReturn(subscriptionInfo2).when(mSubscriptionManager).getActiveSubscriptionInfo(6);
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.startProfileSelection(
+                            availableNetworkInfos, mUpdateAvailableNetworksCallback);
+                });
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.mNetworkAvailableCallBackCpy.onNetworkAvailability(results);
+                });
 
-        activeSubscriptionInfoList.add(subscriptionInfo1);
-        activeSubscriptionInfoList.add(subscriptionInfo2);
-        doReturn(activeSubscriptionInfoList).when(mSubscriptionManager)
-                .getCompleteActiveSubscriptionInfoList();
-
-        List<CellInfo> results2 = new ArrayList<CellInfo>();
-        CellIdentityLte cellIdentityLte = new CellIdentityLte(310, 210, 1, 1, 1);
-        CellInfoLte cellInfoLte = new CellInfoLte();
-        cellInfoLte.setCellIdentity(cellIdentityLte);
-        results2.add((CellInfo) cellInfoLte);
-        ArrayList<String> mccMncs = new ArrayList<>();
-        mccMncs.add("310210");
-        AvailableNetworkInfo availableNetworkInfo = new AvailableNetworkInfo(5, 1, mccMncs,
-            new ArrayList<Integer>());
-        ArrayList<AvailableNetworkInfo> availableNetworkInfos = new ArrayList<AvailableNetworkInfo>();
-        availableNetworkInfos.add(availableNetworkInfo);
-
-        IUpdateAvailableNetworksCallback mCallback = new IUpdateAvailableNetworksCallback.Stub() {
-            @Override
-            public void onComplete(int result) {
-                mResult = result;
-            }
-        };
-
-        mResult = -1;
-        mReady = false;
-        mONSProfileSelector = new MyONSProfileSelector(mContext,
-            new MyONSProfileSelector.ONSProfileSelectionCallback() {
-                public void onProfileSelectionDone() {
-                    setReady(true);
-                }
-            });
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                doReturn(oppSubscriptionInfoList).when(mSubscriptionManager)
-                    .getOpportunisticSubscriptions();
-                doReturn(true).when(mSubscriptionManager).isActiveSubId(anyInt());
-                doReturn(true).when(mSubscriptionBoundTelephonyManager).enableModemForSlot(
-                    anyInt(), anyBoolean());
-
-                mONSProfileSelector.updateOppSubs();
-                mONSProfileSelector.startProfileSelection(availableNetworkInfos, mCallback);
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
-
-        // Wait till initialization is complete.
-        waitUntilReady();
-        mReady = false;
-        mDataSubId = -1;
-
-        // Testing startProfileSelection with opportunistic sub.
-        // On success onProfileSelectionDone must get invoked.
-        assertFalse(mReady);
-        waitForMs(500);
-        mONSProfileSelector.mNetworkAvailableCallBackCpy.onNetworkAvailability(results2);
-        Intent callbackIntent = new Intent(MyONSProfileSelector.ACTION_SUB_SWITCH);
-        callbackIntent.putExtra("sequenceId", 1);
-        callbackIntent.putExtra("subId", 5);
-        waitUntilReady();
         assertEquals(TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS, mResult);
-        assertTrue(mReady);
 
-        mResult = -1;
-        mReady = false;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                doReturn(oppSubscriptionInfoList).when(mSubscriptionManager)
-                    .getOpportunisticSubscriptions();
-                doReturn(true).when(mSubscriptionManager).isActiveSubId(anyInt());
-                doReturn(true).when(mSubscriptionBoundTelephonyManager).enableModemForSlot(
-                    anyInt(), anyBoolean());
-                mONSProfileSelector.updateOppSubs();
-                mONSProfileSelector.startProfileSelection(availableNetworkInfos, mCallback);
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.startProfileSelection(
+                            availableNetworkInfos, mUpdateAvailableNetworksCallback);
+                });
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.mNetworkAvailableCallBackCpy.onNetworkAvailability(results);
+                });
 
-        // Wait till initialization is complete.
-        waitUntilReady();
-        mReady = false;
-        mDataSubId = -1;
-
-        // Testing startProfileSelection with opportunistic sub.
-        // On success onProfileSelectionDone must get invoked.
-        assertFalse(mReady);
-        waitForMs(500);
-        mONSProfileSelector.mNetworkAvailableCallBackCpy.onNetworkAvailability(results2);
-        waitUntilReady();
         assertEquals(TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS, mResult);
-        assertTrue(mReady);
     }
 
     @Test
     public void testStopProfileSelectionWithPreferredDataOnSame() {
-        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", true, null, "1", true, null, 0, 0);
-        subscriptionInfoList.add(subscriptionInfo);
-        doReturn(subscriptionInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(5);
+        SubscriptionInfo subscriptionInfo =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(0)
+                        .build();
+        addActiveSubscriptions(List.of(subscriptionInfo));
+        addOppSubscriptions(List.of(subscriptionInfo));
+        doReturn(5).when(mSubscriptionManager).getPreferredDataSubscriptionId();
+        doReturn(true)
+                .when(mSubscriptionBoundTelephonyManager)
+                .enableModemForSlot(anyInt(), anyBoolean());
+        initONSProfileSelector();
 
-        IUpdateAvailableNetworksCallback mCallback = new IUpdateAvailableNetworksCallback.Stub() {
-            @Override
-            public void onComplete(int result) {
-                mResult = result;
-            }
-        };
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.setCurrentPreferredData(5);
+                    mONSProfileSelector.stopProfileSelection(mUpdateAvailableNetworksCallback);
+                });
 
-        mResult = -1;
-        mReady = false;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                doReturn(subscriptionInfoList).when(mSubscriptionManager)
-                        .getOpportunisticSubscriptions();
-                doReturn(true).when(mSubscriptionManager).isActiveSubId(anyInt());
-                doReturn(true).when(mSubscriptionBoundTelephonyManager).enableModemForSlot(
-                        anyInt(), anyBoolean());
-                doReturn(5).when(mSubscriptionManager).getPreferredDataSubscriptionId();
-                doReturn(subscriptionInfoList).when(mSubscriptionManager)
-                        .getActiveSubscriptionInfoList(anyBoolean());
-
-                mONSProfileSelector = new MyONSProfileSelector(mContext,
-                        new MyONSProfileSelector.ONSProfileSelectionCallback() {
-                            public void onProfileSelectionDone() {
-                                setReady(true);
-                            }
-                        });
-                mONSProfileSelector.updateOppSubs();
-                mONSProfileSelector.setCurrentPreferredData(5);
-                mONSProfileSelector.stopProfileSelection(null);
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
-        waitUntilReady();
-        waitForMs(500);
-        assertEquals(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID, mONSProfileSelector.getCurrentPreferredData());
+        assertEquals(
+                SubscriptionManager.DEFAULT_SUBSCRIPTION_ID,
+                mONSProfileSelector.getCurrentPreferredData());
     }
 
     @Test
     public void testStopProfileSelectionWithPreferredDataOnDifferent() {
-        List<SubscriptionInfo> subscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        SubscriptionInfo subscriptionInfo = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", true, null, "1", true, null, 0, 0);
-        subscriptionInfoList.add(subscriptionInfo);
-        doReturn(subscriptionInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(5);
+        SubscriptionInfo subscriptionInfo =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(0)
+                        .build();
+        addActiveSubscriptions(List.of(subscriptionInfo));
+        addOppSubscriptions(List.of(subscriptionInfo));
+        doReturn(4).when(mSubscriptionManager).getPreferredDataSubscriptionId();
+        initONSProfileSelector();
 
-        IUpdateAvailableNetworksCallback mCallback = new IUpdateAvailableNetworksCallback.Stub() {
-            @Override
-            public void onComplete(int result) {
-                mResult = result;
-            }
-        };
+        mONSProfileSelector.updateOppSubs();
+        mONSProfileSelector.setCurrentPreferredData(5);
+        mONSProfileSelector.stopProfileSelection(null);
 
-        mResult = -1;
-        mReady = false;
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Looper.prepare();
-                doReturn(subscriptionInfoList).when(mSubscriptionManager)
-                        .getOpportunisticSubscriptions();
-                doReturn(true).when(mSubscriptionManager).isActiveSubId(anyInt());
-                doReturn(true).when(mSubscriptionBoundTelephonyManager).enableModemForSlot(
-                        anyInt(), anyBoolean());
-                doReturn(4).when(mSubscriptionManager).getPreferredDataSubscriptionId();
-                doReturn(subscriptionInfoList).when(mSubscriptionManager)
-                        .getActiveSubscriptionInfoList(anyBoolean());
-
-                mONSProfileSelector = new MyONSProfileSelector(mContext,
-                        new MyONSProfileSelector.ONSProfileSelectionCallback() {
-                            public void onProfileSelectionDone() {
-                                setReady(true);
-                            }
-                        });
-                mONSProfileSelector.updateOppSubs();
-                mONSProfileSelector.setCurrentPreferredData(5);
-                mONSProfileSelector.stopProfileSelection(null);
-                mLooper = Looper.myLooper();
-                setReady(true);
-                Looper.loop();
-            }
-        }).start();
-        waitUntilReady();
-        waitForMs(500);
         assertEquals(5, mONSProfileSelector.getCurrentPreferredData());
     }
 
+    /**
+     * 2 - Primary active subscriptions and
+     * 1 - Inactive opportunistic subscription
+     */
     @Test
     public void testAvailablePortWhenTwoPrimarySIMsAreActive() {
-        /**
-         * 2 - Primary active subscriptions and
-         * 1 - Inactive opportunistic subscription
-         */
-
-        List<SubscriptionInfo> activeSubscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        List<SubscriptionInfo> opportunisticInfoList = new ArrayList<SubscriptionInfo>();
-
-        SubscriptionInfo oppSubInfo = new SubscriptionInfo(4, "", -1, "TMO", "TMO", 1, 1,
-                "001", 1, null, "110", "210", "", true, null, "1", 1, true, null, false, 2839, 1,
-                1, null, null, false, TelephonyManager.INVALID_PORT_INDEX);
-
-        SubscriptionInfo primarySubInfo1 = new SubscriptionInfo(5, "", 0, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", true, null, "1", 1, false, null, false, 1839, 1,
-                1, null, null, false, 0);
-        SubscriptionInfo primarySubInfo2 = new SubscriptionInfo(6, "", 0, "TMO", "TMO", 1, 1,
-                "456", 1, null, "310", "211", "", true, null, "1", 1, false, null, false, 1839, 1,
-                1, null, null, false, 1);
-
-        activeSubscriptionInfoList.add(primarySubInfo1);
-        activeSubscriptionInfoList.add(primarySubInfo2);
-        opportunisticInfoList.add(oppSubInfo);
-
-        doReturn(opportunisticInfoList).when(mSubscriptionManager).getOpportunisticSubscriptions();
-        doReturn(activeSubscriptionInfoList).when(mSubscriptionManager)
-                .getCompleteActiveSubscriptionInfoList();
-
-        UiccPortInfo uiccPortInfo1 = new UiccPortInfo("", 0, 0, true);
-        UiccPortInfo uiccPortInfo2 = new UiccPortInfo("", 1, 0, true);
-        ArrayList<UiccPortInfo> uiccPortInfoList = new ArrayList<>();
-        uiccPortInfoList.add(uiccPortInfo1);
-        uiccPortInfoList.add(uiccPortInfo2);
-
-        UiccCardInfo uiccCardInfo = new UiccCardInfo(true, 1, "", 0, false, true, uiccPortInfoList);
-        ArrayList<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
-        uiccCardInfoList.add(uiccCardInfo);
-
-        doReturn(uiccCardInfoList).when(mMockTelephonyManager).getUiccCardsInfo();
-        doReturn(mMockEuiccManager).when(mMockEuiccManager).createForCardId(1);
+        SubscriptionInfo oppSubInfo =
+                new SubscriptionInfo.Builder()
+                        .setId(4)
+                        .setSimSlotIndex(-1)
+                        .setMcc("110")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(2839)
+                        .setPortIndex(TelephonyManager.INVALID_PORT_INDEX)
+                        .build();
+        SubscriptionInfo primarySubInfo1 =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(0)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(false)
+                        .setCarrierId(1839)
+                        .setPortIndex(0)
+                        .build();
+        SubscriptionInfo primarySubInfo2 =
+                new SubscriptionInfo.Builder()
+                        .setId(6)
+                        .setSimSlotIndex(0)
+                        .setMcc("310")
+                        .setMnc("211")
+                        .setEmbedded(true)
+                        .setOpportunistic(false)
+                        .setCarrierId(1839)
+                        .setPortIndex(1)
+                        .build();
+        addActiveSubscriptions(List.of(primarySubInfo1, primarySubInfo2));
+        addOppSubscriptions(List.of(oppSubInfo));
+        addUiccCardInfo(
+                List.of(new UiccPortInfo("", 0, 0, true), new UiccPortInfo("", 1, 0, true)));
+        // Explicitly override the sim ports to be unavailable.
         doReturn(false).when(mMockEuiccManager).isSimPortAvailable(0);
         doReturn(false).when(mMockEuiccManager).isSimPortAvailable(1);
+        initONSProfileSelector();
 
-        mONSProfileSelector = new MyONSProfileSelector(mContext, null);
         mONSProfileSelector.mTelephonyManager = mMockTelephonyManager;
         mONSProfileSelector.mEuiccManager = mMockEuiccManager;
-
         int portIdx = mONSProfileSelector.getAvailableESIMPortIndex();
+
         assertEquals(TelephonyManager.INVALID_PORT_INDEX, portIdx);
     }
 
+    /**
+     * 1 - Primary active subscription and
+     * 1 - Active opportunistic subscription
+     */
     @Test
     public void testAvailablePortWhenOpportunisticEsimIsActive() {
-        /**
-         * 1 - Primary active subscriptions and
-         * 1 - Active opportunistic subscription
-         */
+        SubscriptionInfo oppSubInfo =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1839)
+                        .setPortIndex(0)
+                        .build();
+        SubscriptionInfo primarySubInfo =
+                new SubscriptionInfo.Builder()
+                        .setId(6)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("211")
+                        .setEmbedded(true)
+                        .setOpportunistic(false)
+                        .setCarrierId(1839)
+                        .setPortIndex(1)
+                        .build();
+        addActiveSubscriptions(List.of(oppSubInfo, primarySubInfo));
+        addOppSubscriptions(List.of(oppSubInfo));
+        initONSProfileSelector();
 
-        List<SubscriptionInfo> activeSubscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        List<SubscriptionInfo> opportunisticInfoList = new ArrayList<SubscriptionInfo>();
-
-        SubscriptionInfo oppSubInfo = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", true, null, "1", 1, true, null, false, 1839, 1,
-                1, null, null, false, 0);
-
-        SubscriptionInfo primarySubInfo = new SubscriptionInfo(6, "", 1, "TMO", "TMO", 1, 1,
-                "456", 1, null, "310", "211", "", true, null, "1", 1, false, null, false, 1839, 1,
-                1, null, null, false, 1);
-
-        opportunisticInfoList.add(oppSubInfo);
-        activeSubscriptionInfoList.add(oppSubInfo);
-        activeSubscriptionInfoList.add(primarySubInfo);
-
-        doReturn(opportunisticInfoList).when(mSubscriptionManager)
-                .getOpportunisticSubscriptions();
-        doReturn(activeSubscriptionInfoList).when(mSubscriptionManager)
-                .getCompleteActiveSubscriptionInfoList();
-
-        mONSProfileSelector = new MyONSProfileSelector(mContext, null);
         int portIdx = mONSProfileSelector.getAvailableESIMPortIndex();
+
         assertEquals(0, portIdx);
     }
 
+    /** 2 - Active opportunistic subscriptions. */
     @Test
     public void testAvailablePortWhenTwoOpportunisticEsimsAreActive() {
-        /**
-         * 2 - Active opportunistic subscriptions.
-         */
+        SubscriptionInfo oppSubInfo1 =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1839)
+                        .setPortIndex(0)
+                        .build();
+        SubscriptionInfo oppSubInfo2 =
+                new SubscriptionInfo.Builder()
+                        .setId(6)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("211")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1839)
+                        .setPortIndex(1)
+                        .build();
+        addActiveSubscriptions(List.of(oppSubInfo1, oppSubInfo2));
+        addOppSubscriptions(List.of(oppSubInfo1, oppSubInfo2));
+        initONSProfileSelector();
 
-        List<SubscriptionInfo> activeSubscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        List<SubscriptionInfo> opportunisticInfoList = new ArrayList<SubscriptionInfo>();
-
-        SubscriptionInfo opportunisticSubInfo1 = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", true, null, "1", 1, true, null, false, 1839, 1,
-                1, null, null, false, 0);
-
-        SubscriptionInfo opportunisticSubInfo2 = new SubscriptionInfo(6, "", 1, "TMO", "TMO", 1, 1,
-                "456", 1, null, "310", "211", "", true, null, "1", 1, true, null, false, 1839, 1,
-                1, null, null, false, 1);
-
-        opportunisticInfoList.add(opportunisticSubInfo1);
-        opportunisticInfoList.add(opportunisticSubInfo2);
-        activeSubscriptionInfoList.add(opportunisticSubInfo1);
-        activeSubscriptionInfoList.add(opportunisticSubInfo2);
-
-        doReturn(opportunisticInfoList).when(mSubscriptionManager)
-                .getOpportunisticSubscriptions();
-        doReturn(activeSubscriptionInfoList).when(mSubscriptionManager)
-                .getCompleteActiveSubscriptionInfoList();
-
-        mONSProfileSelector = new MyONSProfileSelector(mContext, null);
         int portIdx = mONSProfileSelector.getAvailableESIMPortIndex();
 
         /* one of the opportunistic eSIM port should be selected */
         assertTrue(portIdx == 0 || portIdx == 1);
     }
 
+    /**
+     * 1 - Primary active subscription and
+     * 1 - Active opportunistic subscription
+     * 2 - Inactive opportunistic subscriptions
+     */
     @Test
     public void testAvailablePortWhenOpportunisticEsimIsActiveAndInactiveSubscriptions() {
-        /**
-         * 1 - Primary active subscription and
-         * 1 - Active opportunistic subscription and
-         * 2 - Inactive opportunistic subscriptions
-         */
+        SubscriptionInfo oppSubInfo1 =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1839)
+                        .setPortIndex(1)
+                        .build();
+        SubscriptionInfo oppSubInfo2 =
+                new SubscriptionInfo.Builder()
+                        .setId(7)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1839)
+                        .setPortIndex(TelephonyManager.INVALID_PORT_INDEX)
+                        .build();
+        SubscriptionInfo oppSubInfo3 =
+                new SubscriptionInfo.Builder()
+                        .setId(8)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1839)
+                        .setPortIndex(TelephonyManager.INVALID_PORT_INDEX)
+                        .build();
+        SubscriptionInfo primarySubInfo =
+                new SubscriptionInfo.Builder()
+                        .setId(6)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("211")
+                        .setEmbedded(true)
+                        .setOpportunistic(false)
+                        .setCarrierId(1839)
+                        .setPortIndex(0)
+                        .build();
+        addActiveSubscriptions(List.of(oppSubInfo1, primarySubInfo));
+        addOppSubscriptions(List.of(oppSubInfo1, oppSubInfo2, oppSubInfo3));
+        initONSProfileSelector();
 
-        List<SubscriptionInfo> activeSubscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        List<SubscriptionInfo> opportunisticInfoList = new ArrayList<SubscriptionInfo>();
-
-        SubscriptionInfo opportunisticSubInfo1 = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", true, null, "1", 1, true, null, false, 1839, 1,
-                1, null, null, false, 1);
-        SubscriptionInfo primarySubInfo = new SubscriptionInfo(6, "", 1, "TMO", "TMO", 1, 1,
-                "456", 1, null, "310", "211", "", true, null, "1", 1, false, null, false, 1839, 1,
-                1, null, null, false, 0);
-
-        SubscriptionInfo opportunisticSubInfo2 = new SubscriptionInfo(7, "", 1, "TMO", "TMO", 1, 1,
-                "789", 1, null, "310", "210", "", true, null, "1", 1, true, null, false, 1839, 1,
-                1, null, null, false, TelephonyManager.INVALID_PORT_INDEX);
-
-        SubscriptionInfo oppSubInfo3 = new SubscriptionInfo(8, "", 1, "TMO", "TMO", 1, 1,
-                "012", 1, null, "310", "210", "", true, null, "1", 1, true, null, false, 1839, 1,
-                1, null, null, false, TelephonyManager.INVALID_PORT_INDEX);
-
-        opportunisticInfoList.add(opportunisticSubInfo1);
-        opportunisticInfoList.add(opportunisticSubInfo2);
-        opportunisticInfoList.add(oppSubInfo3);
-        activeSubscriptionInfoList.add(opportunisticSubInfo1);
-        activeSubscriptionInfoList.add(primarySubInfo);
-
-        doReturn(opportunisticInfoList).when(mSubscriptionManager)
-                .getOpportunisticSubscriptions();
-        doReturn(activeSubscriptionInfoList).when(mSubscriptionManager)
-                .getCompleteActiveSubscriptionInfoList();
-
-        mONSProfileSelector = new MyONSProfileSelector(mContext, null);
         int portIdx = mONSProfileSelector.getAvailableESIMPortIndex();
+
         assertEquals(1, portIdx);
     }
 
+    /**
+     * 1 - Primary inactive subscription and
+     * 1 - Inactive opportunistic subscription
+     */
     @Test
     public void testAvailablePortWhenOnlyInactiveSubscriptions() {
-        /**
-         * 1 - Primary inactive subscription and
-         * 2 - Inactive opportunistic subscriptions
-         */
-
-        List<SubscriptionInfo> activeSubscriptionInfoList = new ArrayList<SubscriptionInfo>();
-        List<SubscriptionInfo> opportunisticInfoList = new ArrayList<SubscriptionInfo>();
-
-        SubscriptionInfo oppSubInfo1 = new SubscriptionInfo(5, "", 1, "TMO", "TMO", 1, 1,
-                "123", 1, null, "310", "210", "", true, null, "1", 1, true, null, false, 1839, 1,
-                1, null, null, false, TelephonyManager.INVALID_PORT_INDEX);
-
-        // Not used in activeSubscriptionInfoList or opportunisticInfoList
-        /*SubscriptionInfo primarySubInfo = new SubscriptionInfo(6, "", 1, "TMO", "TMO", 1, 1,
-                "456", 1, null, "310", "211", "", true, null, "1", 1, false, null, false, 1839, 1,
-                1, null, null, false, 2);*/
-
-        SubscriptionInfo oppSubInfo2 = new SubscriptionInfo(7, "", 1, "TMO", "TMO", 1, 1,
-                "789", 1, null, "310", "210", "", true, null, "1", 1, true, null, false, 1839, 1,
-                1, null, null, false, TelephonyManager.INVALID_PORT_INDEX);
-
-        opportunisticInfoList.add(oppSubInfo1);
-        opportunisticInfoList.add(oppSubInfo2);
-
-        doReturn(opportunisticInfoList).when(mSubscriptionManager)
-                .getOpportunisticSubscriptions();
-        doReturn(activeSubscriptionInfoList).when(mSubscriptionManager)
-                .getCompleteActiveSubscriptionInfoList();
-
-        UiccPortInfo uiccPortInfo1 = new UiccPortInfo("", 0, 0, false);
-        UiccPortInfo uiccPortInfo2 = new UiccPortInfo("", 1, 0, false);
-        List<UiccPortInfo> uiccPortInfoList = new ArrayList<>();
-        uiccPortInfoList.add(uiccPortInfo1);
-        uiccPortInfoList.add(uiccPortInfo2);
-
-        UiccCardInfo uiccCardInfo = new UiccCardInfo(true, 1, "", 0, false, true, uiccPortInfoList);
-        List<UiccCardInfo> uiccCardInfoList = new ArrayList<>();
-        uiccCardInfoList.add(uiccCardInfo);
-
-        doReturn(uiccCardInfoList).when(mMockTelephonyManager).getUiccCardsInfo();
-        doReturn(mMockEuiccManager).when(mMockEuiccManager).createForCardId(1);
-        doReturn(true).when(mMockEuiccManager).isSimPortAvailable(0);
-        doReturn(true).when(mMockEuiccManager).isSimPortAvailable(1);
-
-        mONSProfileSelector = new MyONSProfileSelector(mContext, null);
+        SubscriptionInfo oppSubInfo1 =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1839)
+                        .setPortIndex(TelephonyManager.INVALID_PORT_INDEX)
+                        .build();
+        SubscriptionInfo oppSubInfo2 =
+                new SubscriptionInfo.Builder()
+                        .setId(7)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(true)
+                        .setOpportunistic(true)
+                        .setCarrierId(1839)
+                        .setPortIndex(TelephonyManager.INVALID_PORT_INDEX)
+                        .build();
+        addActiveSubscriptions(List.of());
+        addOppSubscriptions(List.of(oppSubInfo1, oppSubInfo2));
+        addUiccCardInfo(
+                List.of(new UiccPortInfo("", 0, 0, false), new UiccPortInfo("", 1, 0, false)));
+        initONSProfileSelector();
         mONSProfileSelector.mTelephonyManager = mMockTelephonyManager;
         mONSProfileSelector.mEuiccManager = mMockEuiccManager;
 
         int portIdx = mONSProfileSelector.getAvailableESIMPortIndex();
+
         assertTrue(portIdx == 0 || portIdx == 1);
     }
 
     @Test
     public void testGetMncMccFromCellInfoNr() {
-        mONSProfileSelector = new MyONSProfileSelector(mContext, null);
+        initONSProfileSelector();
 
-        CellIdentityNr cellIdentityNr = new CellIdentityNr(0, 0, 0, new int[]{0}, "111", "222", 0,
-                "", "",  Collections.emptyList());
+        CellIdentityNr cellIdentityNr =
+                new CellIdentityNr(
+                        0, 0, 0, new int[] {0}, "111", "222", 0, "", "", Collections.emptyList());
 
         CellInfoNr cellinfoNr = new CellInfoNr(0, true, 0, cellIdentityNr, null);
 
