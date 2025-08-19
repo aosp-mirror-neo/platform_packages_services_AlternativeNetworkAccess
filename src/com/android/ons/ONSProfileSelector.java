@@ -28,6 +28,7 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteException;
 import android.telephony.AvailableNetworkInfo;
@@ -45,9 +46,11 @@ import android.text.TextUtils;
 import android.util.IndentingPrintWriter;
 import android.util.Log;
 
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
+import com.android.internal.telephony.flags.Flags;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -57,16 +60,27 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 /**
- * Profile selector class which will select the right profile based upon
- * geographic information input and network scan results.
+ * Profile selector class which will select the right profile based upon geographic information
+ * input and network scan results.
+ *
+ * Thread safety: ONSProfileSelctor instantiates a handler using the ONS worker thread. State that
+ * is accessed by external calls that cannot be posted to this handler are annotated with @GuardedBy
+ * and protected in dedicated helpers.
+ *
+ * Note: Until com.android.internal.telephony.flags.ons_thread_consolidation is cleaned up, an older
+ * threading model exists in parallel to the previously described model. In the older model,
+ * ONSProfileSelector has its own HandlerThread to post work to. Locking and which thread work
+ * should be run on is not consistent and should be altered with caution.
  */
 public class ONSProfileSelector {
     private static final String TAG = "ONSProfileSelector";
     private static final boolean DBG = true;
-    private final Object mLock = new Object();
+    private final FlaggedLock mFlaggedLock =
+            new FlaggedLock(new ReentrantLock(), Flags.onsThreadConsolidation());
 
     private static final int INVALID_SEQUENCE_ID = -1;
     private static final int START_SEQUENCE_ID = 1;
@@ -100,8 +114,10 @@ public class ONSProfileSelector {
 
     @VisibleForTesting
     protected SubscriptionManager mSubscriptionManager;
+    @GuardedBy("mFlaggedLock")
     @VisibleForTesting
     protected List<SubscriptionInfo> mOppSubscriptionInfos;
+    @GuardedBy("mFlaggedLock")
     @VisibleForTesting
     protected List<SubscriptionInfo> mStandaloneOppSubInfos;
     private ONSProfileSelectionCallback mProfileSelectionCallback;
@@ -131,9 +147,8 @@ public class ONSProfileSelector {
                     if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
                         sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                                 TelephonyManager.UPDATE_AVAILABLE_NETWORKS_INVALID_ARGUMENTS);
-                        synchronized (mLock) {
-                            mNetworkScanCallback = null;
-                        }
+                        // With this flag, mNetworScanCallback no longer needs protected.
+                        mFlaggedLock.runLockedWhenDisabled(() -> mNetworkScanCallback = null);
                         return;
                     }
 
@@ -145,7 +160,8 @@ public class ONSProfileSelector {
                 @Override
                 public void onError(int error) {
                     log("Network scan failed with error " + error);
-                    synchronized (mLock) {
+                    // With this flag mNetworkScanCallback no longer needs protected.
+                    mFlaggedLock.runLockedWhenDisabled(() -> {
                         if (mIsEnabled && mAvailableNetworkInfos != null
                                 && !mAvailableNetworkInfos.isEmpty()) {
                             handleNetworkScanResult(mAvailableNetworkInfos.getFirst().getSubId());
@@ -171,7 +187,7 @@ public class ONSProfileSelector {
                                 mNetworkScanCallback = null;
                             }
                         }
-                    }
+                    });
                 }
 
                 private void handleNetworkScanResult(int subId) {
@@ -193,10 +209,11 @@ public class ONSProfileSelector {
                             }
                         }
                         mProfileSelectionCallback.onProfileSelectionDone();
-                        synchronized (mLock) {
+                        // With this flag, this state no longer needs protected.
+                        mFlaggedLock.runLockedWhenDisabled(() -> {
                             mNetworkScanCallback = null;
                             mAvailableNetworkInfos = null;
-                        }
+                        });
                     } else {
                         logDebug("switch to sub:" + subId);
                         switchToSubscription(subId, getAvailableESIMPortIndex());
@@ -298,8 +315,9 @@ public class ONSProfileSelector {
     }
 
     private int getSubIdUsingAvailableNetworks(String mcc, String mnc, int priorityLevel) {
-        String mccMnc = mcc + mnc;
-        synchronized (mLock) {
+        // With this flag, none of the affected state needs to be protected.
+        return mFlaggedLock.runLockedWhenDisabled(() -> {
+            String mccMnc = mcc + mnc;
             if (mAvailableNetworkInfos != null) {
                 for (AvailableNetworkInfo availableNetworkInfo : mAvailableNetworkInfos) {
                     if (availableNetworkInfo.getPriority() != priorityLevel) {
@@ -312,16 +330,16 @@ public class ONSProfileSelector {
                     }
                 }
             }
-        }
-        return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+            return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        });
     }
 
     @Nullable private List<SubscriptionInfo> getStandaloneOppSubsInfos() {
-        return mStandaloneOppSubInfos;
+        return mFlaggedLock.runLockedWhenEnabled(() -> mStandaloneOppSubInfos);
     }
 
     @Nullable private List<SubscriptionInfo> getOppSubscriptionInfos() {
-        return mOppSubscriptionInfos;
+        return mFlaggedLock.runLockedWhenEnabled(() -> mOppSubscriptionInfos);
     }
 
     public SubscriptionInfo getOpportunisticSubInfo(int subId) {
@@ -472,9 +490,8 @@ public class ONSProfileSelector {
     }
 
     private void updateToken() {
-        synchronized (mLock) {
-            mSequenceId++;
-        }
+        // With this flag, mSequenceId does not need to be protected.
+        mFlaggedLock.runLockedWhenDisabled(() -> mSequenceId++);
     }
 
     private List<AvailableNetworkInfo> getFilteredAvailableNetworks(
@@ -723,7 +740,8 @@ public class ONSProfileSelector {
     }
 
     private void stopProfileScanningProcedure() {
-        synchronized (mLock) {
+        // With this flag, none of this state needs protected.
+        mFlaggedLock.runLockedWhenDisabled(() -> {
             if (mNetworkScanCallback != null) {
                 sendUpdateNetworksCallbackHelper(mNetworkScanCallback,
                         TelephonyManager.UPDATE_AVAILABLE_NETWORKS_ABORTED);
@@ -733,7 +751,7 @@ public class ONSProfileSelector {
 
             mAvailableNetworkInfos = null;
             mIsEnabled = false;
-        }
+        });
     }
 
     /**
@@ -841,7 +859,7 @@ public class ONSProfileSelector {
 
     @VisibleForTesting
     protected void updateOpportunisticSubscriptions() {
-        synchronized (mLock) {
+        mFlaggedLock.runLocked(() ->  {
             mOppSubscriptionInfos = mSubscriptionManager
                     .getOpportunisticSubscriptions().stream()
                     .filter(subInfo -> !subInfo.isGroupDisabled())
@@ -851,7 +869,7 @@ public class ONSProfileSelector {
                         .filter(subInfo -> subInfo.getGroupUuid() == null)
                         .collect(Collectors.toList());
             }
-        }
+        });
     }
 
     private void enableModemStackForNonOpportunisticSlots() {
@@ -889,40 +907,42 @@ public class ONSProfileSelector {
                 mNetworkAvailableCallBack);
         mEuiccManager = c.getSystemService(EuiccManager.class);
         updateOpportunisticSubscriptions();
-        mThread = new HandlerThread(TAG);
-        mThread.start();
-        mHandler = new Handler(mThread.getLooper()) {
+        Looper looper;
+        if (!Flags.onsThreadConsolidation()) {
+            mThread = new HandlerThread(TAG);
+            mThread.start();
+            looper = mThread.getLooper();
+        } else {
+            looper = Looper.myLooper();
+        }
+        mHandler = new Handler(looper) {
             @Override
             public void handleMessage(Message msg) {
-                switch (msg.what) {
-                    case MSG_PROFILE_UPDATE:
-                        synchronized (mLock) {
+                // All protected state is protected via helper methods
+                // so it is no longer necessary to acquire mLock here.
+                mFlaggedLock.runLockedWhenDisabled(() -> {
+                    switch (msg.what) {
+                        case MSG_PROFILE_UPDATE:
                             updateOpportunisticSubscriptions();
                             enableModemStackForNonOpportunisticSlots();
-                        }
-                        break;
-                    case MSG_START_PROFILE_SELECTION:
-                        logDebug("Msg received for profile update");
-                        synchronized (mLock) {
+                            break;
+                        case MSG_START_PROFILE_SELECTION:
+                            logDebug("Msg received for profile update");
                             checkProfileUpdate((Object[]) msg.obj);
-                        }
-                        break;
-                    case MSG_STOP_PROFILE_SELECTION:
-                        logDebug("Msg received to stop profile selection");
-                        synchronized (mLock) {
+                            break;
+                        case MSG_STOP_PROFILE_SELECTION:
+                            logDebug("Msg received to stop profile selection");
                             stopProfileSelectionProcess((IUpdateAvailableNetworksCallback) msg.obj);
-                        }
-                        break;
-                    case MSG_SUB_SWITCH_COMPLETE:
-                        logDebug("Msg received for sub switch");
-                        synchronized (mLock) {
+                            break;
+                        case MSG_SUB_SWITCH_COMPLETE:
+                            logDebug("Msg received for sub switch");
                             onSubSwitchComplete((int) msg.obj);
-                        }
-                        break;
-                    default:
-                        log("invalid message");
-                        break;
-                }
+                            break;
+                        default:
+                            log("invalid message");
+                            break;
+                    }
+                });
             }
         };
         // register for profile update events
