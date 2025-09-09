@@ -182,8 +182,8 @@ public class OpportunisticNetworkService extends Service {
             }
         };
 
-        thread.start();
         synchronized (thread) {
+            thread.start();
             try {
                 thread.wait();
             } catch (Exception e) {
