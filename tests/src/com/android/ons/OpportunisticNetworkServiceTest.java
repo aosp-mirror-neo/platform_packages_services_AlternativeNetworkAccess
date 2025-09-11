@@ -15,6 +15,8 @@
  */
 package com.android.ons;
 
+import static com.android.internal.telephony.util.TelephonyUtils.TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
@@ -32,7 +34,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserManager;
@@ -480,10 +481,9 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
             fail("Not expect exception " + e.getMessage());
         }
 
-        // Replace field to set SDK version of vendor partition to Android V
-        int vendorApiLevel = Build.VERSION_CODES.VANILLA_ICE_CREAM;
+        // Replace field to set vendor API level to the one where the exceptions are enabled.
         replaceInstance(OpportunisticNetworkService.class, "mVendorApiLevel",
-                mOpportunisticNetworkService, vendorApiLevel);
+                mOpportunisticNetworkService, TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL);
 
         // FEATURE_TELEPHONY_DATA is not defined, expect UnsupportedOperationException.
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_DATA))
