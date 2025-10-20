@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.os.Message;
 import android.os.PersistableBundle;
 import android.telephony.AccessNetworkConstants;
@@ -38,6 +39,7 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.util.ArrayUtils;
 
 import java.io.FileDescriptor;
@@ -47,10 +49,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * ONSNetworkScanCtlr accepts NetworkScan requests, performs NetworkScan and notifies registrants
  * the network availability with the scan results.
+ *
+ * Thread safety: ONSNetworkScanCtlr instantiates a handler using the ONS worker
+ * thread. ONSNetworkScanCtlr has no state access outside of the ONS worker thread.
+ *
+ * Note: Until com.android.internal.telephony.flags.ons_thread_consolidation is cleaned up, an older
+ * threading model exists in parallel to the previously described model. In the older model,
+ * ONSNetworkScanCtlr has its own HandlerThread to post work to. Locking and which thread work
+ * should be run on is not consistent and should be altered with caution.
  */
 public class ONSNetworkScanCtlr {
     private static final String TAG = "ONSNetworkScanCtlr";
@@ -58,7 +69,8 @@ public class ONSNetworkScanCtlr {
     private static final int SEARCH_PERIODICITY_FAST = (int) TimeUnit.MINUTES.toSeconds(1);
     private static final int MAX_SEARCH_TIME = (int) TimeUnit.MINUTES.toSeconds(1);
     private static final int SCAN_RESTART_TIME = (int) TimeUnit.MINUTES.toMillis(1);
-    private final Object mLock = new Object();
+    private final FlaggedLock mFlaggedLock =
+            new FlaggedLock(new ReentrantLock(), Flags.onsThreadConsolidation());
 
     /** Message  to handle scan responses from modem */
     private static final int MSG_SCAN_RESULTS_AVAILABLE = 1;
@@ -173,9 +185,10 @@ public class ONSNetworkScanCtlr {
         if (!mIsScanActive || results == null) {
           return;
         }
-        List<CellInfo> filteredResults = new ArrayList<>();
         mIs4gScanEnabled = getIs4gScanEnabled();
-        synchronized (mLock) {
+        List<CellInfo> filteredResults = new ArrayList<>();
+        // With this flag, ONSNetworkScanCtlr no longer has any protected state.
+        mFlaggedLock.runLockedWhenDisabled(() -> {
             for (CellInfo cellInfo : results) {
                 if (mMccMncs.contains(getMccMnc(cellInfo))) {
                     if (cellInfo instanceof CellInfoNr) {
@@ -196,7 +209,7 @@ public class ONSNetworkScanCtlr {
                     }
                 }
             }
-        }
+        });
         if ((!filteredResults.isEmpty()) && (mNetworkAvailableCallBack != null)) {
             // Todo: change to aggregate results on success.
             mNetworkAvailableCallBack.onNetworkAvailability(filteredResults);
@@ -209,10 +222,11 @@ public class ONSNetworkScanCtlr {
             mNetworkAvailableCallBack.onError(error);
         }
 
-        synchronized (mLock) {
+        // With this flag, ONSNetworkScanCtlr no longer has any protected state.
+        mFlaggedLock.runLockedWhenDisabled(() -> {
             mIsScanActive = false;
             mCurrentScan = null;
-        }
+        });
     }
 
     public ONSNetworkScanCtlr(Context c, TelephonyManager telephonyManager,
@@ -229,9 +243,15 @@ public class ONSNetworkScanCtlr {
     public void init(Context context, TelephonyManager telephonyManager,
             NetworkAvailableCallBack networkAvailableCallBack) {
         log("init called");
-        mThread = new HandlerThread(TAG);
-        mThread.start();
-        mHandler =  new Handler(mThread.getLooper()) {
+        Looper looper;
+        if (!Flags.onsThreadConsolidation()) {
+            mThread = new HandlerThread(TAG);
+            mThread.start();
+            looper = mThread.getLooper();
+        } else {
+            looper = Looper.myLooper();
+        }
+        mHandler =  new Handler(looper) {
             @Override
             public void handleMessage(Message msg) {
                 switch (msg.what) {
@@ -356,9 +376,8 @@ public class ONSNetworkScanCtlr {
         NetworkScanRequest networkScanRequest = new NetworkScanRequest(
             NetworkScanRequest.SCAN_TYPE_PERIODIC, ras, periodicity, MAX_SEARCH_TIME, false,
             NetworkScanRequest.MAX_INCREMENTAL_PERIODICITY_SEC, mccMncs);
-        synchronized (mLock) {
-            mMccMncs = mccMncs;
-        }
+        // With this flag, ONSNetworkScanCtlr no longer has any protected state.
+        mFlaggedLock.runLockedWhenDisabled(() -> mMccMncs = mccMncs);
         return networkScanRequest;
     }
 
@@ -373,10 +392,10 @@ public class ONSNetworkScanCtlr {
         return startNetworkScan(networkScanRequest);
     }
 
-
     private boolean startNetworkScan(NetworkScanRequest networkScanRequest) {
-        NetworkScan networkScan;
-        synchronized (mLock) {
+        // With this flag, ONSNetworkScanCtlr no longer has any protected state.
+        return mFlaggedLock.runLockedWhenDisabled(() -> {
+            NetworkScan networkScan;
             // if the request is same as existing one, then make sure to not proceed
             if (mIsScanActive && mCurrentScanRequest.equals(networkScanRequest)) {
                 return true;
@@ -400,30 +419,32 @@ public class ONSNetworkScanCtlr {
             mCurrentScan = networkScan;
             mIsScanActive = true;
             mCurrentScanRequest = networkScanRequest;
-        }
 
-        logDebug("startNetworkScan " + networkScanRequest);
-        return true;
+            logDebug("startNetworkScan " + networkScanRequest);
+            return true;
+        });
     }
 
     private void restartScan() {
-        NetworkScan networkScan;
-        logDebug("restartScan");
-        synchronized (mLock) {
+        // With this flag, ONSNetworkScanCtlr no longer has any protected state.
+        mFlaggedLock.runLockedWhenDisabled(() -> {
+            NetworkScan networkScan;
+            logDebug("restartScan");
             if (mCurrentScanRequest != null) {
                 networkScan = mTelephonyManager.requestNetworkScan(mCurrentScanRequest,
                         mNetworkScanCallback);
                 mIsScanActive = true;
             }
-        }
+        });
     }
 
     /**
      * Stop network scan
      */
     public void stopNetworkScan() {
-        logDebug("stopNetworkScan");
-        synchronized (mLock) {
+        // With this flag, ONSNetworkScanCtlr no longer has any protected state.
+        mFlaggedLock.runLockedWhenDisabled(() -> {
+            logDebug("stopNetworkScan");
             if (mIsScanActive && mCurrentScan != null) {
                 try {
                     mCurrentScan.stopScan();
@@ -434,7 +455,7 @@ public class ONSNetworkScanCtlr {
                 mCurrentScan = null;
                 mCurrentScanRequest = null;
             }
-        }
+        });
     }
 
     private static void log(String msg) {

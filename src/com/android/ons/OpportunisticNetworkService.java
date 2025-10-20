@@ -16,13 +16,10 @@
 
 package com.android.ons;
 
-import static android.telephony.TelephonyManager.ENABLE_FEATURE_MAPPING;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.Service;
-import android.app.compat.CompatChanges;
 import android.compat.Compatibility;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledAfter;
@@ -51,6 +48,7 @@ import android.telephony.TelephonyFrameworkInitializer;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.IOns;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
@@ -58,16 +56,35 @@ import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.flags.Flags;
+import com.android.internal.telephony.util.TelephonyUtils;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * OpportunisticNetworkService implements ions.
  * It scans network and matches the results with opportunistic subscriptions.
  * Use the same to provide user opportunistic data in areas with corresponding networks
+ *
+ * Thread safety: The OpportunisticNetworkService (ONS) instantiates a single worker HandlerThread
+ * on initialization. This thread is used by all handlers in the ONS, which allows most ONS state to
+ * be thread-safe by default. To keep this true, adhere to the following policies:
+ *
+ * - Do not create new threads - use the ONS worker thread to create new handlers
+ * - Do not lock longer than is necessary to update state
+ * - If possible, isolate read/mutation of proteced state to helpers to ensure locking is short
+ * - Post work for external calls to a handler as soon as preconditions are checked
+ * - External calls that cannot be posted to a handler must ensure they are locking any accessed
+ *   state
+ *
+ * Note: Until com.android.internal.telephony.flags.ons_thread_consolidation is cleaned up, an older
+ * threading model exists in parallel to the previously described model. This model involves
+ * separate threads for OpportunisticNetworkService, ONSProfileSelector, and
+ * ONSNetworkScanCtrl. Locking and which thread work should be run on is not consistent and should
+ * be altered with caution.
  */
 public class OpportunisticNetworkService extends Service {
     @VisibleForTesting protected Context mContext;
@@ -78,10 +95,14 @@ public class OpportunisticNetworkService extends Service {
     private ONSStats mONSStats;
     private Handler mHandler = null;
 
-    private final Object mLock = new Object();
+    private final FlaggedLock mFlaggedLock =
+            new FlaggedLock(new ReentrantLock(), Flags.onsThreadConsolidation());
+    @GuardedBy("mFlaggedLock")
     @VisibleForTesting protected boolean mIsEnabled;
     @VisibleForTesting protected ONSProfileSelector mProfileSelector;
+    @GuardedBy("mFlaggedLock")
     private SharedPreferences mSharedPref;
+    @GuardedBy("mFlaggedLock")
     @VisibleForTesting protected HashMap<String, ONSConfigInput> mONSConfigInputHashMap;
     private int mVendorApiLevel;
 
@@ -129,16 +150,17 @@ public class OpportunisticNetworkService extends Service {
         mHandler = new Handler(Looper.myLooper()) {
             @Override
             public void handleMessage(Message msg) {
-                switch (msg.what) {
-                    case MSG_SIM_STATE_CHANGE:
-                        synchronized (mLock) {
+                // With flag, mONSConfigInputMap locking is handled via setCarrierAppConfig
+                mFlaggedLock.runLockedWhenDisabled(() -> {
+                    switch (msg.what) {
+                        case MSG_SIM_STATE_CHANGE:
                             handleSimStateChange();
-                        }
-                        break;
-                    default:
-                        log("invalid message");
-                        break;
-                }
+                            break;
+                        default:
+                            log("invalid message");
+                            break;
+                    }
+                });
             }
         };
     }
@@ -158,8 +180,8 @@ public class OpportunisticNetworkService extends Service {
             }
         };
 
-        thread.start();
         synchronized (thread) {
+            thread.start();
             try {
                 thread.wait();
             } catch (Exception e) {
@@ -314,7 +336,8 @@ public class OpportunisticNetworkService extends Service {
 
             final long identity = Binder.clearCallingIdentity();
             try {
-                mProfileSelector.selectProfileForData(subId, needValidation, callback);
+                runOrPostToWorkerThread(() ->
+                    mProfileSelector.selectProfileForData(subId, needValidation, callback));
             } finally {
                 Binder.restoreCallingIdentity(identity);
             }
@@ -387,7 +410,8 @@ public class OpportunisticNetworkService extends Service {
 
                 final long identity = Binder.clearCallingIdentity();
                 try {
-                    handleSystemAppAvailableNetworks(availableNetworks, callback);
+                    runOrPostToWorkerThread(() ->
+                        handleSystemAppAvailableNetworks(availableNetworks, callback));
                 } finally {
                     Binder.restoreCallingIdentity(identity);
                 }
@@ -415,18 +439,28 @@ public class OpportunisticNetworkService extends Service {
                     }
                 }
 
-                if (!Flags.onsThreadConsolidation()) {
-                    handleCarrierAppAvailableNetworks(availableNetworks, callback,
-                            callingPackage);
-                } else {
+                if (Flags.onsThreadConsolidation()) {
                     final long identity = Binder.clearCallingIdentity();
                     try {
-                        handleCarrierAppAvailableNetworks(availableNetworks, callback,
-                                callingPackage);
+                        runOrPostToWorkerThread(() ->
+                            handleCarrierAppAvailableNetworks(availableNetworks, callback,
+                                    callingPackage));
                     } finally {
                         Binder.restoreCallingIdentity(identity);
                     }
+                } else {
+                    runOrPostToWorkerThread(() ->
+                        handleCarrierAppAvailableNetworks(availableNetworks, callback,
+                                callingPackage));
                 }
+            }
+        }
+
+        private void runOrPostToWorkerThread(Runnable task) {
+            if (Flags.onsThreadConsolidation()) {
+                mHandler.post(task);
+            } else {
+                task.run();
             }
         }
 
@@ -885,28 +919,38 @@ public class OpportunisticNetworkService extends Service {
     }
 
     @Nullable private ONSConfigInput getCarrierAppConfig() {
-        return mONSConfigInputHashMap.get(CARRIER_APP_CONFIG_NAME);
+        return getAppConfig(CARRIER_APP_CONFIG_NAME);
     }
 
     @Nullable private ONSConfigInput getSystemAppConfig() {
-        return mONSConfigInputHashMap.get(SYSTEM_APP_CONFIG_NAME);
+        return getAppConfig(SYSTEM_APP_CONFIG_NAME);
+    }
+
+    @Nullable private ONSConfigInput getAppConfig(@NonNull String key) {
+        return mFlaggedLock.runLockedWhenEnabled(() -> mONSConfigInputHashMap.get(key));
     }
 
     private void setCarrierAppConfig(ONSConfigInput config) {
-        mONSConfigInputHashMap.put(CARRIER_APP_CONFIG_NAME, config);
+        setAppConfig(CARRIER_APP_CONFIG_NAME, config);
     }
 
     private void setSystemAppConfig(ONSConfigInput config) {
-        mONSConfigInputHashMap.put(SYSTEM_APP_CONFIG_NAME, config);
+        setAppConfig(SYSTEM_APP_CONFIG_NAME, config);
+    }
+
+    private void setAppConfig(@NonNull String key, ONSConfigInput config) {
+        mFlaggedLock.runLockedWhenEnabled(() -> mONSConfigInputHashMap.put(key, config));
     }
 
     private void updateEnableState(boolean enable) {
-        mIsEnabled = enable;
-        mSharedPref.edit().putBoolean(PREF_ENABLED, mIsEnabled).apply();
+        mFlaggedLock.runLockedWhenEnabled(() -> {
+            mIsEnabled = enable;
+            mSharedPref.edit().putBoolean(PREF_ENABLED, mIsEnabled).apply();
+        });
     }
 
     private boolean getEnableState() {
-        return mIsEnabled;
+        return mFlaggedLock.runLockedWhenEnabled(() -> mIsEnabled);
     }
 
     /**
@@ -915,7 +959,7 @@ public class OpportunisticNetworkService extends Service {
      * @param enable enable(true) or disable(false)
      */
     private void enableOpportunisticNetwork(boolean enable) {
-        synchronized (mLock) {
+        mFlaggedLock.runLockedWhenDisabled(() -> {
             if (getEnableState() == enable) {
                 return;
             }
@@ -937,8 +981,8 @@ public class OpportunisticNetworkService extends Service {
                             systemConfig.availableNetworkCallback());
                 }
             }
-        }
-        logDebug("service is enable state " + getEnableState());
+            logDebug("service is enable state " + getEnableState());
+        });
     }
 
     /**
@@ -948,23 +992,8 @@ public class OpportunisticNetworkService extends Service {
      */
     private void enforceTelephonyFeatureWithException(@Nullable String callingPackage,
             @NonNull String telephonyFeature, @NonNull String methodName) {
-        if (callingPackage == null || mPackageManager == null) {
-            return;
-        }
-
-        if (!CompatChanges.isChangeEnabled(ENABLE_FEATURE_MAPPING, callingPackage,
-                Binder.getCallingUserHandle())
-                || mVendorApiLevel < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-            // Skip to check associated telephony feature,
-            // if compatibility change is not enabled for the current process or
-            // the SDK version of vendor partition is less than Android V.
-            return;
-        }
-
-        if (!mPackageManager.hasSystemFeature(telephonyFeature)) {
-            throw new UnsupportedOperationException(
-                    methodName + " is unsupported without " + telephonyFeature);
-        }
+        TelephonyUtils.enforceTelephonyFeatureWithException(callingPackage, mPackageManager,
+                mVendorApiLevel, telephonyFeature, methodName);
     }
 
     private boolean canManageSubscription(SubscriptionInfo subInfo, String packageName) {

@@ -15,6 +15,8 @@
  */
 package com.android.ons;
 
+import static com.android.internal.telephony.util.TelephonyUtils.TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
@@ -32,7 +34,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserManager;
@@ -363,6 +364,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
 
         // Assume carrier app has updated available networks at first.
         // Then system app updated available networks which is not standalone.
+        mReady = false;
         try {
             iOpportunisticNetworkService.updateAvailableNetworks(
                     availableNetworkInfos, mUpdateAvailableNetworksCallback, pkgForDebug);
@@ -370,16 +372,19 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
             Log.e(TAG, "RemoteException", ex);
             fail("Unexpected RemoteException");
         }
+        waitUntilReady();
         verify(mockProfileSelector, never()).startProfileSelection(any(), any());
 
         // System app updated available networks which contain standalone network.
         doReturn(true).when(mockProfileSelector).containStandaloneOppSubs(any());
+        mReady = false;
         try {
             iOpportunisticNetworkService.updateAvailableNetworks(
                     availableNetworkInfos, mUpdateAvailableNetworksCallback, pkgForDebug);
         } catch (RemoteException ex) {
             Log.e(TAG, "RemoteException", ex);
         }
+        waitUntilReady();
         verify(mockProfileSelector, times(1))
                 .startProfileSelection(any(), eq(mUpdateAvailableNetworksCallback));
 
@@ -402,12 +407,14 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         // System app updated available networks which equal to null.
         // Case2: stop profile selection, if there is no any carrier app request.
         doReturn(null).when(mockONSConfigInputHashMap).get(CARRIER_APP_CONFIG_NAME);
+        mReady = false;
         try {
             iOpportunisticNetworkService.updateAvailableNetworks(
                     availableNetworkInfos, mUpdateAvailableNetworksCallback, pkgForDebug);
         } catch (RemoteException ex) {
             Log.e(TAG, "RemoteException", ex);
         }
+        waitUntilReady();
         verify(mockProfileSelector, times(1)).stopProfileSelection(any());
     }
 
@@ -474,10 +481,9 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
             fail("Not expect exception " + e.getMessage());
         }
 
-        // Replace field to set SDK version of vendor partition to Android V
-        int vendorApiLevel = Build.VERSION_CODES.VANILLA_ICE_CREAM;
+        // Replace field to set vendor API level to the one where the exceptions are enabled.
         replaceInstance(OpportunisticNetworkService.class, "mVendorApiLevel",
-                mOpportunisticNetworkService, vendorApiLevel);
+                mOpportunisticNetworkService, TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL);
 
         // FEATURE_TELEPHONY_DATA is not defined, expect UnsupportedOperationException.
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_DATA))
@@ -681,12 +687,14 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         availableNetworkInfos.add(availableNetworkInfo);
 
         setAndAssertEnableState(true);
+        mReady = false;
         try {
             iOpportunisticNetworkService.updateAvailableNetworks(
                     availableNetworkInfos, mUpdateAvailableNetworksCallback, pkgForDebug);
         } catch (RemoteException e) {
             Log.e(TAG, "RemoteException", e);
         }
+        waitUntilReady();
         verify(mockProfileSelector)
                 .startProfileSelection(availableNetworkInfos, mUpdateAvailableNetworksCallback);
     }

@@ -32,6 +32,8 @@ import android.telephony.NetworkScanRequest;
 import android.telephony.RadioAccessSpecifier;
 import android.telephony.SubscriptionInfo;
 
+import com.android.internal.telephony.flags.Flags;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -366,7 +368,11 @@ public class ONSNetworkScanCtlrTest extends ONSBaseTest {
 
     @Test
     public void testGetMncMccFromCellInfoNr() {
-        mONSNetworkScanCtlr = new ONSNetworkScanCtlr(mContext, mMockTelephonyManager, null);
+        if (!Flags.onsThreadConsolidation()) {
+            mONSNetworkScanCtlr = new ONSNetworkScanCtlr(mContext, mMockTelephonyManager, null);
+        } else {
+            initONSNetworkScanCtrl();
+        }
 
         CellIdentityNr cellIdentityNr = new CellIdentityNr(0, 0, 0, new int[]{0}, "111", "222", 0,
                 "", "",  Collections.emptyList());
