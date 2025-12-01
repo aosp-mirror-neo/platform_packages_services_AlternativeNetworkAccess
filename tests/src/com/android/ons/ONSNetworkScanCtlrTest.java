@@ -52,9 +52,24 @@ public class ONSNetworkScanCtlrTest extends ONSBaseTest {
     private Looper mLooper;
 
     private static final int SEARCH_PERIODICITY = 60;
-    private static final SubscriptionInfo TEST_SUBSCRIPTION_INFO = new SubscriptionInfo(
-            1, "", 1, null, null, 0, 0, null, 0, null, "310", "210", null,
-            false, null, null);
+    private static final SubscriptionInfo TEST_SUBSCRIPTION_INFO = new SubscriptionInfo.Builder()
+            .setId(1)
+            .setIccId("")
+            .setSimSlotIndex(1)
+            .setDisplayName(null)
+            .setCarrierName(null)
+            .setDisplayNameSource(0)
+            .setIconTint(0)
+            .setNumber(null)
+            .setDataRoaming(0)
+            .setIcon(null)
+            .setMcc("310")
+            .setMnc("210")
+            .setCountryIso(null)
+            .setEmbedded(false)
+            .setNativeAccessRules(null)
+            .setCardString(null)
+            .build();
     private static final RadioAccessSpecifier TEST_5G_RAS = new RadioAccessSpecifier(
             AccessNetworkConstants.AccessNetworkType.NGRAN,
             new int[] {AccessNetworkConstants.NgranBands.BAND_71},
