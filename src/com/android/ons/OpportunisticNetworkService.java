@@ -908,12 +908,12 @@ public class OpportunisticNetworkService extends Service {
             if (carrierConfig == null) {
                 mProfileSelector.stopProfileSelection(callbackStub);
             } else {
-                sendUpdateNetworksCallbackHelper(callbackStub,
-                        TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
                 log("Try to start carrier app request");
                 mProfileSelector.startProfileSelection(
                         carrierConfig.availableNetworkInfos(),
                         carrierConfig.availableNetworkCallback());
+                sendUpdateNetworksCallbackHelper(callbackStub,
+                        TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS);
             }
         }
     }
