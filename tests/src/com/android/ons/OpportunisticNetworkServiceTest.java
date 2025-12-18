@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
@@ -391,6 +392,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
         // System app updated available networks which equal to null.
         // Case1: start carrier app request, if there is a carrier app request.
         availableNetworkInfos.clear();
+        clearInvocations(mockProfileSelector);
         runUntilReady(
                 () -> {
                     try {
@@ -402,7 +404,7 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
                         Log.e(TAG, "RemoteException", ex);
                     }
                 });
-        verify(mockProfileSelector, times(2)).startProfileSelection(any(), any());
+        verify(mockProfileSelector, times(1)).startProfileSelection(any(), any());
 
         // System app updated available networks which equal to null.
         // Case2: stop profile selection, if there is no any carrier app request.
