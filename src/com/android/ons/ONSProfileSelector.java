@@ -568,7 +568,8 @@ public class ONSProfileSelector {
 
         // Check if ports are available on the embedded slot
         int availSIMPortIndex = getAvailableESIMPortIndex();
-        if (availSIMPortIndex == TelephonyManager.INVALID_PORT_INDEX) {
+        if (!Flags.skipAvailableEsimPortCheckForOpportunisticSub()
+                && availSIMPortIndex == TelephonyManager.INVALID_PORT_INDEX) {
             logDebug("SIM port not available.");
             sendUpdateNetworksCallbackHelper(callbackStub,
                     TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SIM_PORT_NOT_AVAILABLE);
