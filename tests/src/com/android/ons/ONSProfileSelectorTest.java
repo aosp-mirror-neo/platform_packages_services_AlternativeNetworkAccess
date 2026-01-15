@@ -34,6 +34,8 @@ import android.content.Context;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.ServiceManager;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telephony.AvailableNetworkInfo;
 import android.telephony.CellIdentityLte;
 import android.telephony.CellIdentityNr;
@@ -48,13 +50,18 @@ import android.telephony.UiccPortInfo;
 import android.telephony.euicc.EuiccManager;
 import android.util.Log;
 
+import androidx.test.runner.AndroidJUnit4;
+
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.ISub;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
+import com.android.internal.telephony.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -67,7 +74,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+@RunWith(AndroidJUnit4.class)
 public class ONSProfileSelectorTest extends ONSBaseTest {
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private MyONSProfileSelector mONSProfileSelector;
     private int mResult;
@@ -887,5 +898,55 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
 
         assertEquals(mONSProfileSelector.getMcc(cellinfoNr), "111");
         assertEquals(mONSProfileSelector.getMnc(cellinfoNr), "222");
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SKIP_AVAILABLE_ESIM_PORT_CHECK_FOR_OPPORTUNISTIC_SUB)
+    public void testStartProfileSelectionWithActiveOpportunisticNonEmbeddedSub() {
+        SubscriptionInfo subscriptionInfo =
+                new SubscriptionInfo.Builder()
+                        .setId(5)
+                        .setSimSlotIndex(1)
+                        .setMcc("310")
+                        .setMnc("210")
+                        .setEmbedded(false)
+                        .setOpportunistic(true)
+                        .setCarrierId(1)
+                        .setPortIndex(0)
+                        .build();
+        addActiveSubscriptions(List.of(subscriptionInfo));
+        addOppSubscriptions(List.of(subscriptionInfo));
+        addUiccCardInfo(List.of(new UiccPortInfo("1", 0, 0, false)));
+        doReturn(false).when(mMockEuiccManager).isSimPortAvailable(0);
+
+        List<String> mccMncs = List.of("310210");
+        ArrayList<AvailableNetworkInfo> availableNetworkInfos =
+                new ArrayList<>(
+                        List.of(
+                                new AvailableNetworkInfo(
+                                        5, PRIORITY_HIGH, mccMncs, new ArrayList<Integer>())));
+
+        doAnswer(mStartFastNetworkScanReceived)
+                .when(mONSNetworkScanCtlr)
+                .startFastNetworkScan(eq(availableNetworkInfos));
+
+        initONSProfileSelector();
+
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.mEuiccManager = mMockEuiccManager;
+                    mONSProfileSelector.updateOppSubs();
+                    mONSProfileSelector.startProfileSelection(
+                            availableNetworkInfos, mUpdateAvailableNetworksCallback);
+                });
+
+        runUntilReady(
+                () -> {
+                    mONSProfileSelector.mNetworkAvailableCallBackCpy.onNetworkAvailability(
+                            new ArrayList<>(List.of(createCellInfoLte(310, 210))));
+                });
+
+        assertEquals(TelephonyManager.UPDATE_AVAILABLE_NETWORKS_SUCCESS, mResult);
+        verify(mONSNetworkScanCtlr).startFastNetworkScan(eq(availableNetworkInfos));
     }
 }
