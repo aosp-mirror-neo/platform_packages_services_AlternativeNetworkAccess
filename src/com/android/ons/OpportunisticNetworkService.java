@@ -32,6 +32,7 @@ import android.content.pm.PackageManager;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
@@ -166,19 +167,33 @@ public class OpportunisticNetworkService extends Service {
     }
 
     private void startWorkerThreadAndInit() {
-        Thread thread = new Thread() {
-            @Override
-            public void run() {
-                super.run();
-                Looper.prepare();
-                Looper looper = Looper.myLooper();
-                initialize(getBaseContext());
-                synchronized (this) {
-                    this.notifyAll();
+        Thread thread;
+        if (Flags.onsHandlerThread()) {
+            thread = new HandlerThread(TAG) {
+                @Override
+                protected void onLooperPrepared() {
+                    initialize(getBaseContext());
+                    // TODO(b/240081918): Find a better way than synchronizing on this.
+                    synchronized (this) {
+                        this.notifyAll();
+                    }
                 }
-                looper.loop();
-            }
-        };
+            };
+        } else {
+            thread = new Thread() {
+                @Override
+                public void run() {
+                    super.run();
+                    Looper.prepare();
+                    Looper looper = Looper.myLooper();
+                    initialize(getBaseContext());
+                    synchronized (this) {
+                        this.notifyAll();
+                    }
+                    looper.loop();
+                }
+            };
+        }
 
         synchronized (thread) {
             thread.start();
