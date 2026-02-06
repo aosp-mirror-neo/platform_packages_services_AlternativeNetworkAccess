@@ -901,7 +901,7 @@ public class ONSProfileSelectorTest extends ONSBaseTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SKIP_AVAILABLE_ESIM_PORT_CHECK_FOR_OPPORTUNISTIC_SUB)
+    @EnableFlags(Flags.FLAG_ENABLE_IS_PRIVATE_NETWORK_API)
     public void testStartProfileSelectionWithActiveOpportunisticNonEmbeddedSub() {
         SubscriptionInfo subscriptionInfo =
                 new SubscriptionInfo.Builder()
