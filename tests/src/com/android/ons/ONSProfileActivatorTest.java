@@ -726,6 +726,54 @@ public class ONSProfileActivatorTest extends ONSBaseTest {
         verify(mMockONSProfileDownloader, times(maxRetryCount)).downloadProfile(TEST_SUBID_0);
     }
 
+    @Test
+    public void testDownloadAndActivate_cleanupFlagEnabled() {
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(true).when(mMockEuiccManager).isEnabled();
+        doReturn(2).when(mMockTeleManager).getSupportedModemCount();
+        doReturn(2).when(mMockTeleManager).getActiveModemCount();
+        doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
+        doReturn(1).when(mMockactiveSubInfos).size();
+        doReturn(mMockSubInfo).when(mMockactiveSubInfos).getFirst();
+        doReturn(false).when(mMockSubInfo).isOpportunistic();
+        doReturn(TEST_SUBID_1).when(mMockSubInfo).getSubscriptionId();
+        doReturn(null).when(mMockSubInfo).getGroupUuid();
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
+        onsProfileActivator.setOnsCleanupEnabledForTest(true);
+        onsProfileActivator.mIsInternetConnAvailable = true;
+        assertEquals(ONSProfileActivator.Result.ERR_UNKNOWN,
+                onsProfileActivator.handleCarrierConfigChange());
+        verify(mMockONSProfileDownloader, times(0)).downloadProfile(TEST_SUBID_1);
+    }
+
+    @Test
+    public void testDownloadAndActivate_cleanupFlagDisabled() {
+        doReturn(true).when(mMockResources).getBoolean(R.bool.enable_ons_auto_provisioning);
+        doReturn(true).when(mMockEuiccManager).isEnabled();
+        doReturn(2).when(mMockTeleManager).getSupportedModemCount();
+        doReturn(2).when(mMockTeleManager).getActiveModemCount();
+        doReturn(mMockactiveSubInfos).when(mMockSubManager).getActiveSubscriptionInfoList();
+        doReturn(1).when(mMockactiveSubInfos).size();
+        doReturn(mMockSubInfo).when(mMockactiveSubInfos).getFirst();
+        doReturn(false).when(mMockSubInfo).isOpportunistic();
+        doReturn(TEST_SUBID_1).when(mMockSubInfo).getSubscriptionId();
+        doReturn(null).when(mMockSubInfo).getGroupUuid();
+        doReturn(ONSProfileDownloader.DownloadProfileResult.SUCCESS).when(mMockONSProfileDownloader)
+                .downloadProfile(TEST_SUBID_1);
+        ONSProfileActivator onsProfileActivator = new ONSProfileActivator(mMockContext,
+                mMockSubManager, mMockTeleManager, mMockCarrierConfigManager, mMockEuiccManager,
+                mMockConnectivityManager, mMockONSProfileConfigurator, mMockONSProfileDownloader,
+                mMockONSStats);
+        onsProfileActivator.setOnsCleanupEnabledForTest(false);
+        onsProfileActivator.mIsInternetConnAvailable = true;
+        assertEquals(ONSProfileActivator.Result.DOWNLOAD_REQUESTED,
+                onsProfileActivator.handleCarrierConfigChange());
+        verify(mMockONSProfileDownloader, times(1)).downloadProfile(TEST_SUBID_1);
+    }
+
     @After
     public void tearDown() throws Exception {
         super.tearDown();

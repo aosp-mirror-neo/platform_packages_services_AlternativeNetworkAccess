@@ -618,10 +618,12 @@ public class OpportunisticNetworkService extends Service {
                     break;
 
                     case ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD: {
-                        mONSProfileActivator.getONSProfileDownloader().onCallbackIntentReceived(
+                        if (!Flags.enableOnsCleanup()) {
+                            mONSProfileActivator.getONSProfileDownloader().onCallbackIntentReceived(
                                 mIntent.getParcelableExtra(Intent.EXTRA_INTENT),
                                 mIntent.getIntExtra(ONSProfileResultReceiver.EXTRA_RESULT_CODE, 0)
-                        );
+                            );
+                        }
                     }
                     break;
 
