@@ -65,8 +65,22 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
     @VisibleForTesting protected boolean mIsInternetConnAvailable = false;
     @VisibleForTesting protected boolean mRetryDownloadWhenNWConnected = false;
     @VisibleForTesting protected int mDownloadRetryCount = 0;
+    @VisibleForTesting
+    protected Boolean mIsOnsCleanupEnabledForTest = null;
 
     @VisibleForTesting protected static final int REQUEST_CODE_DOWNLOAD_RETRY = 2;
+
+    @VisibleForTesting
+    void setOnsCleanupEnabledForTest(boolean enabled) {
+        mIsOnsCleanupEnabledForTest = enabled;
+    }
+
+    private boolean isOnsCleanupEnabled() {
+        if (mIsOnsCleanupEnabledForTest != null) {
+            return mIsOnsCleanupEnabledForTest;
+        }
+        return Flags.enableOnsCleanup();
+    }
 
     public ONSProfileActivator(Context context, ONSStats onsStats) {
         mContext = context;
@@ -80,10 +94,14 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
         mEuiccManager = mContext.getSystemService(EuiccManager.class);
         mONSProfileConfig = new ONSProfileConfigurator(mContext, mSubManager,
                 mCarrierConfigMgr, mEuiccManager, this);
-        mONSProfileDownloader =
+        if(!isOnsCleanupEnabled()) {
+                    mONSProfileDownloader =
                 new ONSProfileDownloader(
                         mContext, mCarrierConfigMgr, mEuiccManager, mSubManager, this);
-
+        }
+        else {
+            mONSProfileDownloader = null;
+        }
         //Monitor internet connection.
         mConnectivityManager = context.getSystemService(ConnectivityManager.class);
         mONSStats = onsStats;
@@ -293,15 +311,16 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
         }
 
         //Opportunistic subscription not found. Trigger Download.
-        ONSProfileDownloader.DownloadProfileResult res = mONSProfileDownloader.downloadProfile(
-                primaryCBRSSubInfo.getSubscriptionId());
-
-        return switch (res) {
-            case DUPLICATE_REQUEST -> Result.ERR_DUPLICATE_DOWNLOAD_REQUEST;
-            case INVALID_SMDP_ADDRESS -> Result.ERR_INVALID_CARRIER_CONFIG;
-            case SUCCESS -> Result.DOWNLOAD_REQUESTED;
-        };
-
+        if (!isOnsCleanupEnabled()) {
+            ONSProfileDownloader.DownloadProfileResult res = mONSProfileDownloader.downloadProfile(
+                    primaryCBRSSubInfo.getSubscriptionId());
+            return switch (res) {
+                case DUPLICATE_REQUEST -> Result.ERR_DUPLICATE_DOWNLOAD_REQUEST;
+                case INVALID_SMDP_ADDRESS -> Result.ERR_INVALID_CARRIER_CONFIG;
+                case SUCCESS -> Result.DOWNLOAD_REQUESTED;
+            };
+        }
+        return Result.ERR_UNKNOWN;
     }
 
     @Override
@@ -624,6 +643,8 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
         pw.println("  mIsInternetConnAvailable: " + mIsInternetConnAvailable);
         pw.println("  mRetryDownloadWhenNWConnected: " + mRetryDownloadWhenNWConnected);
         pw.println("  mDownloadRetryCount: " + mDownloadRetryCount);
-        mONSProfileDownloader.dump(fd, pw, args);
+        if (mONSProfileDownloader != null) {
+            mONSProfileDownloader.dump(fd, pw, args);
+        }
     }
 }

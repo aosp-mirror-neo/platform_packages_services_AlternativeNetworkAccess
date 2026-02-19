@@ -29,12 +29,15 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.spy;
 
 import android.compat.testing.PlatformCompatChangeRule;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserManager;
@@ -51,6 +54,8 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.internal.telephony.IOns;
 import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.IUpdateAvailableNetworksCallback;
+import com.android.internal.telephony.flags.Flags;
+import com.android.ons.ONSProfileDownloader;
 
 import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges;
 
@@ -122,6 +127,8 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
     private Context mMockContext;
     @Mock
     private PackageManager mPackageManager;
+    @Mock
+    private ONSProfileDownloader mMockONSProfileDownloader;
 
     @Before
     public void setUp() throws Exception {
@@ -711,5 +718,64 @@ public class OpportunisticNetworkServiceTest extends ONSBaseTest {
     private void setAndAssertEnableState(boolean enable) throws Exception {
         iOpportunisticNetworkService.setEnable(enable, pkgForDebug);
         assertEquals(enable, iOpportunisticNetworkService.isEnabled(pkgForDebug));
+    }
+
+    private Handler getOnsHandler() throws Exception {
+        Field handlerField = OpportunisticNetworkService.class.getDeclaredField("mHandler");
+        handlerField.setAccessible(true);
+        return (Handler) handlerField.get(mOpportunisticNetworkService);
+    }
+
+
+    @Test
+    public void testOnStartCommandWithEsimDownloadAction_flagEnabled() throws Exception {
+        mSetFlagsRule.enableFlags(Flags.FLAG_ENABLE_ONS_CLEANUP);
+
+        Field activatorField =
+                OpportunisticNetworkService.class.getDeclaredField("mONSProfileActivator");
+        activatorField.setAccessible(true);
+        ONSProfileActivator realActivator =
+                (ONSProfileActivator) activatorField.get(mOpportunisticNetworkService);
+
+        Field downloaderField =
+                ONSProfileActivator.class.getDeclaredField("mONSProfileDownloader");
+        downloaderField.setAccessible(true);
+        downloaderField.set(realActivator, mMockONSProfileDownloader);
+
+        Intent intent = new Intent(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
+        mOpportunisticNetworkService.onStartCommand(intent, 0, 1);
+
+        setReady(false);
+        getOnsHandler().post(() -> {
+            verify(mMockONSProfileDownloader, never()).onCallbackIntentReceived(any(), anyInt());
+            setReady(true);
+        });
+        waitUntilReady(500);
+    }
+
+    @Test
+    public void testOnStartCommandWithEsimDownloadAction_flagDisabled() throws Exception {
+        mSetFlagsRule.disableFlags(Flags.FLAG_ENABLE_ONS_CLEANUP);
+
+        Field activatorField =
+                OpportunisticNetworkService.class.getDeclaredField("mONSProfileActivator");
+        activatorField.setAccessible(true);
+        ONSProfileActivator realActivator =
+                (ONSProfileActivator) activatorField.get(mOpportunisticNetworkService);
+
+        Field downloaderField =
+                ONSProfileActivator.class.getDeclaredField("mONSProfileDownloader");
+        downloaderField.setAccessible(true);
+        downloaderField.set(realActivator, mMockONSProfileDownloader);
+
+        Intent intent = new Intent(ONSProfileDownloader.ACTION_ONS_ESIM_DOWNLOAD);
+        mOpportunisticNetworkService.onStartCommand(intent, 0, 1);
+
+        setReady(false);
+        getOnsHandler().post(() -> {
+            verify(mMockONSProfileDownloader).onCallbackIntentReceived(any(), anyInt());
+            setReady(true);
+        });
+        waitUntilReady(500);
     }
 }
