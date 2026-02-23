@@ -669,9 +669,6 @@ public class OpportunisticNetworkService extends Service {
                 PREF_NAME, Context.MODE_PRIVATE);
         mSubscriptionManager = (SubscriptionManager) mContext.getSystemService(
                 Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-        if (Flags.workProfileApiSplit()) {
-            mSubscriptionManager = mSubscriptionManager.createForAllUserProfiles();
-        }
         mONSConfigInputHashMap = new HashMap<String, ONSConfigInput>();
         mONSStats = new ONSStats(mContext, mSubscriptionManager);
         mContext.registerReceiver(mBroadcastReceiver,

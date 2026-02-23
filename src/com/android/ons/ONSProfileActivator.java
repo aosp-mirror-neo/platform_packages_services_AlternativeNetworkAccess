@@ -84,11 +84,7 @@ public class ONSProfileActivator implements ONSProfileConfigurator.ONSProfConfig
 
     public ONSProfileActivator(Context context, ONSStats onsStats) {
         mContext = context;
-        SubscriptionManager sm = mContext.getSystemService(SubscriptionManager.class);
-        if (Flags.workProfileApiSplit()) {
-            sm = sm.createForAllUserProfiles();
-        }
-        mSubManager = sm;
+        mSubManager = mContext.getSystemService(SubscriptionManager.class);
         mTelephonyManager = mContext.getSystemService(TelephonyManager.class);
         mCarrierConfigMgr = mContext.getSystemService(CarrierConfigManager.class);
         mEuiccManager = mContext.getSystemService(EuiccManager.class);
